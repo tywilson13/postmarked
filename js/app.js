@@ -1,0 +1,461 @@
+(function () {
+  'use strict';
+  const EPOCH = new Date(2026, 10, 7); // Postmarked No. 1 = Nov 7, 2026
+  const SPEED_MAX = 20;               // max Express bonus per delivery
+
+  const CATALOGUE = [
+    { id: 'chain', mark: 'CHAIN LETTER', title: 'Chain Letter', skill: 'Rarity', par: 90,
+      how: 'Five links. Each answer has to start with the last letter of the one before. Anything that fits the prompt counts, but rarer answers are worth more: Common 8, Scarce 12, Rare 16, Priceless 20. No countdown, so choose well (a quick chain still earns Express).' },
+    { id: 'places', mark: 'WHERE FROM', title: 'Where’s This From?', skill: 'Maps', par: 90,
+      how: 'Three postcards from three real places. The front says what it is and roughly where, the postmark names the country, and the message gives it away. Pin the spot whenever you’re ready. Closer pins and fewer clues earn more.' },
+    { id: 'cross', mark: 'CROSS POST', title: 'Cross Post', skill: 'Words',
+      how: 'A little crossword where every word fits today’s theme. There are no clues, just a bank holding exactly the letters you need. Tap a word, then tap tiles to fill it, or type. Stuck? Clues and letters are for sale.', par: 150 },
+    { id: 'missorted', mark: 'MISSORTED', title: 'Missorted', skill: 'Puzzle', par: 60,
+      how: 'Three sacks got packed wrong. Swap stamps between sacks until each holds a group of four. A sack seals when it’s right. Fewer swaps score more.' },
+    { id: 'scale', mark: 'POSTAL SCALE', title: 'The Postal Scale', skill: 'Estimation', par: 45,
+      how: 'Three parcels, three questions with a number for an answer. Set the dial to your best guess. Close counts!' },
+    { id: 'sender', mark: 'WHO SENT IT', title: 'Who Sent This?', skill: 'Mystery', par: 0,
+      how: 'Last chance to name the animal who sent today’s mail. Open more clues if you need them. Each one lowers the prize a little.' },
+    // Retired games, kept so receipts from earlier days still show the right names.
+    { id: 'cryptic', mark: 'POSTCARD', title: 'The Postcard', skill: 'Words', retired: true },
+    { id: 'postmark', mark: 'WHERE FROM', title: 'Where’s This From?', skill: 'Maps', retired: true }
+  ];
+  const legOfId = id => CATALOGUE.find(l => l.id === (LEGACY[id] || id)) || CATALOGUE[0];
+  const CLEAR_CLUE = 50;               // a delivery scoring this much sends its sender clue unsmudged
+  // Records saved before the redesign used older game ids.
+  const LEGACY = { pins: 'postmark', penpals: 'chain', mail: 'missorted', customs: 'scale', finale: 'sender' };
+  const legOf = id => legOfId(id);
+  const GRADES = [
+    [350, 'S'], [325, 'A+'], [305, 'A'], [285, 'A−'], [265, 'B+'], [245, 'B'], [225, 'B−'],
+    [205, 'C+'], [185, 'C'], [165, 'C−'], [145, 'D+'], [125, 'D'], [105, 'D−'], [0, 'F']
+  ];
+  const GRADE_NAME = { S: 'Golden Envelope', A: 'Express Delivery', B: 'First Class', C: 'Second Class', D: 'Scenic Route', F: 'Lost in the Mail' };
+
+  // ───────── helpers ─────────
+  const $ = s => document.querySelector(s);
+  const stage = $('#stage');
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem('pm:' + k); return v ? JSON.parse(v) : d; } catch { return d; } },
+    set(k, v) { try { localStorage.setItem('pm:' + k, JSON.stringify(v)); } catch { /* private mode */ } }
+  };
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const fmtTime = ms => { const s = Math.floor(ms / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
+  const toast = msg => { const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), 2000); };
+  const sfx = n => window.PMSound && PMSound.play(n);
+
+  function todayNumber() {
+    const now = new Date(); const d = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    return Math.max(1, Math.round((d - EPOCH) / 86400000) + 1);
+  }
+  const params = new URLSearchParams(location.search);
+  const issue = +params.get('day') || todayNumber();
+  const day = PMDaily.build(issue);
+  PMGames.loadChain(day.chain.category);   // fetch today's Chain Letter answers while the home screen shows
+  const LEGS = day.route.map(legOfId);
+  const DELIVERIES = LEGS.length - 1; // the sender is a running bonus, not a delivery
+  const issueDate = new Date(EPOCH.getTime() + (issue - 1) * 86400000);
+  const dateLabel = issueDate.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
+  const shortDate = issueDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }).toUpperCase();
+  const recipient = () => store.get('name', '') || 'You';
+
+  // ───────── head-to-head: results arrive as a link (?from=Name&no=3&s=95.114.80.95.108.50&t=312) ─────────
+  function ingestRival() {
+    const from = params.get('from'), s = params.get('s'), no = +params.get('no');
+    if (!from || !s || !no) return null;
+    const scores = s.split('.').map(Number).filter(n => isFinite(n));
+    const rival = { name: from.slice(0, 24), scores, total: scores.reduce((a, b) => a + b, 0), timeMs: (+params.get('t') || 0) * 1000 };
+    if (rival.name === store.get('name', '')) return null; // your own link
+    const all = store.get('rivals', {});
+    all[no] = all[no] || {};
+    all[no][rival.name] = rival;
+    store.set('rivals', all);
+    ['from', 's', 'no', 't'].forEach(k => params.delete(k));
+    history.replaceState(null, '', location.pathname + (params.toString() ? '?' + params : ''));
+    return { ...rival, issue: no };
+  }
+  const arrivedRival = ingestRival();
+  const rivalsFor = n => Object.values(store.get('rivals', {})[n] || {}).filter(r => r.scores.length === LEGS.length);
+
+  // ───────── route clock (a red postage meter) ─────────
+  const meter = $('#meter');
+  const Clock = {
+    total: 0, leg: 0, t0: null,
+    run() { if (this.t0 == null) this.t0 = performance.now(); meter.classList.add('running'); },
+    pause() { if (this.t0 != null) { const d = performance.now() - this.t0; this.total += d; this.leg += d; this.t0 = null; } meter.classList.remove('running'); },
+    now() { return this.total + (this.t0 != null ? performance.now() - this.t0 : 0); },
+    legNow() { return this.leg + (this.t0 != null ? performance.now() - this.t0 : 0); },
+    reset() { this.total = 0; this.leg = 0; this.t0 = null; }
+  };
+  let currentPar = null;
+  setInterval(() => {
+    meter.querySelector('.meter-time').textContent = fmtTime(Clock.now());
+    const express = currentPar != null && Clock.t0 != null && Clock.legNow() / 1000 < currentPar;
+    meter.classList.toggle('express', express);
+  }, 200);
+
+  // ───────── progress stamps in the header ─────────
+  function progress(active, doneCount) {
+    $('#progress').innerHTML = LEGS.map((l, i) =>
+      `<span class="mini ${i < doneCount ? 'done' : i === active ? 'now' : ''}" title="${l.title}">${PMArt.icon[l.id]}</span>`).join('');
+  }
+
+  // ───────── state ─────────
+  let results = [];
+  let senderState = null;
+  const freshSender = () => ({ seen: 0, clear: [], wiped: [], wrong: 0, solved: false, value: 0 });
+  const speedBonus = (score, secs, par) => !par || score <= 0 ? 0 : Math.round(SPEED_MAX * Math.max(0, Math.min(1, (par - secs) / (par / 2))));
+  function senderSolved() {
+    const album = store.get('album', {});
+    album[issue] = { name: day.sender.name, emoji: day.sender.emoji, tint: day.sender.tint };
+    store.set('album', album);
+  }
+  const senderEmoji = st => st.solved ? `${day.sender.emoji} on clue ${st.solvedAt || st.seen}` : '❔';
+
+  // ───────── screens ─────────
+  function home() {
+    progress(-1, 0);
+    const saved = store.get('day:' + issue);
+    if (saved && !params.has('replay')) return summary(saved, true);
+    const stats = getStats();
+    const waiting = rivalsFor(issue);
+    stage.innerHTML = `
+      ${waiting.length ? `<div class="telegram rival-banner enter"><span class="tg-animal">💌</span><p><b>${waiting.map(r => esc(r.name)).join(' and ')}</b> already delivered today's mail${waiting.length === 1 ? ` (${waiting[0].total} postage)` : ''}. Your turn. You'll see how you compare at the end.</p></div>` : ''}
+      <section class="envelope enter">
+        <div class="env-top">
+          <div class="env-from">
+            <div class="small-caps">From</div>
+            <div class="hand">Pip the Otter<br>Sorting Office, Riverbank</div>
+          </div>
+          <div class="env-stamp-wrap">
+            <div class="stamp-perf env-stamp"><div class="stamp-face t-sky">${PMArt.pip}<span class="stamp-val">No.${issue}</span></div></div>
+            <div class="env-postmark">${PMArt.postmark('RIVERBANK', shortDate, '★')}</div>
+          </div>
+        </div>
+        <div class="env-to">
+          <div class="small-caps">To</div>
+          <button class="hand to-name" id="toName" title="Change name">${esc(recipient())}</button>
+          <div class="env-addr">${esc(dateLabel)}</div>
+        </div>
+        <div class="par-avion">Par avion · Air mail</div>
+      </section>
+
+      <section class="paper manifest enter">
+        <div class="manifest-head">
+          <span class="small-caps">Today's deliveries</span>
+          <span class="hand theme">${esc(day.theme)}</span>
+        </div>
+        <ol class="route-list">
+          ${LEGS.map(l => `<li><span class="rl-host">${PMArt.hostFor(l.id).svg}</span><span class="t">${l.title}</span><span class="dots"></span><span class="tag">${l.skill}</span></li>`).join('')}
+        </ol>
+        <p class="manifest-note">Somebody sent you mail today. Each delivery brings a clue to <b>who it was</b>. The meter only runs while you play, and finishing fast earns an <b>Express</b> bonus.</p>
+        <button class="seal-btn" id="go"><span class="seal">P</span><span>Open today's mail</span></button>
+      </section>
+      ${stats.played ? scoreboardHTML() + passportHTML(stats) + '<button class="btn big" id="albumBtn">Open your stamp album</button>' : ''}`;
+    if (stats.played) $('#albumBtn').onclick = () => album(home);
+    $('#go').onclick = () => { sfx('paper'); Clock.reset(); results = []; senderState = freshSender(); PMMap.loadHiRes(); openLeg(0); };
+    $('#toName').onclick = () => {
+      const n = prompt('Who is this mail addressed to?', store.get('name', ''));
+      if (n !== null) { store.set('name', n.trim().slice(0, 24)); home(); }
+    };
+  }
+
+  // After a couple of routes, players know the rules: skip the instructions envelope.
+  const plays = () => store.get('plays', {});
+  const experienced = id => (plays()[id] || 0) >= 2;
+  const countPlay = id => { const p = plays(); p[id] = (p[id] || 0) + 1; store.set('plays', p); };
+  function openLeg(i) {
+    if (LEGS[i].id === 'sender' && senderState.solved) {
+      results.push({ id: 'sender', score: senderState.value, bonus: 0, secs: 0, emoji: senderEmoji(senderState) });
+      return finishRoute();
+    }
+    return experienced(LEGS[i].id) ? play(i) : intro(i);
+  }
+
+  function intro(i) {
+    const leg = LEGS[i];
+    progress(i, i);
+    currentPar = null;
+    stage.innerHTML = `
+      <section class="sealed enter">
+        <div class="sealed-count small-caps">Delivery ${i + 1} of ${LEGS.length}</div>
+        <div class="sealed-host">${PMArt.hostFor(leg.id).svg}</div>
+        <h2>${leg.title}</h2>
+        <p class="host-intro">with ${PMArt.hostFor(leg.id).name} the ${PMArt.hostFor(leg.id).kind}</p>
+        <p>${leg.how}</p>
+        <button class="seal-btn" id="play"><span class="seal">${i + 1}</span><span>Open</span></button>
+        <div class="par">${leg.timed ? 'A timed round: 90 seconds' : leg.par ? `Express under ${leg.par} seconds` : 'Bonus round'}</div>
+      </section>`;
+    $('#play').onclick = () => { sfx('paper'); play(i); };
+    $('#play').focus();
+    window.scrollTo({ top: 0 });
+  }
+
+  function play(i) {
+    const leg = LEGS[i];
+    progress(i, i);
+    Clock.leg = 0;
+    currentPar = leg.par;
+    stage.innerHTML = '';
+    stage.classList.toggle('wide', leg.id === 'places');
+    let finished = false;
+    Clock.run(); // the meter starts the moment the envelope opens
+    const data = leg.id === 'sender' ? { sender: day.sender, state: senderState, delivered: DELIVERIES } : day[leg.id];
+    PMGames[leg.id](stage, data, {
+      issue,
+      run: () => Clock.run(),
+      pause: () => Clock.pause(),
+      done: r => {
+        if (finished) return; finished = true;
+        Clock.pause();
+        countPlay(leg.id);
+        const secs = Clock.leg / 1000;
+        const bonus = speedBonus(r.score, secs, leg.par);
+        if (leg.id === 'sender') {
+          results.push({ id: leg.id, score: r.score, bonus: 0, secs, emoji: r.solved ? senderEmoji(senderState) : '❔' });
+          if (r.solved) senderSolved();
+        } else {
+          results.push({ id: leg.id, score: r.score, bonus, secs, emoji: r.emoji });
+          senderState.seen = i + 1;
+          senderState.clear[i] = r.score >= CLEAR_CLUE;
+        }
+        legResult(i, r, bonus, secs);
+      }
+    });
+    window.scrollTo({ top: 0 });
+  }
+
+  // The game's host says how it went.
+  function hostReaction(id, score) {
+    const h = PMArt.hostFor(id);
+    const pick = a => a[Math.floor(Math.random() * a.length)];
+    const line = score >= 85 ? pick(['Superb! First-class work.', 'Wonderful. That’s a top delivery.', 'Brilliant, just brilliant.'])
+      : score >= 60 ? pick(['Nicely done!', 'Good work. That’ll travel well.', 'Lovely job.'])
+      : score >= 30 ? pick(['Not bad at all.', 'A decent delivery.', 'Got there in the end!'])
+      : pick(['A tricky one today. Tomorrow’s another day!', 'Oh well, they can’t all be easy.']);
+    return `<div class="host-bar enter ${score >= 60 ? 'mood-happy hop' : score < 30 ? 'mood-oops' : ''}"><div class="host-art">${h.svg}</div><div class="bubble"><span class="host-name">${h.name} the ${h.kind}</span><span class="bubble-text">${line}</span></div></div>`;
+  }
+
+  function legResult(i, r, bonus, secs) {
+    const leg = LEGS[i];
+    progress(-1, i + 1);
+    currentPar = null;
+    stage.classList.remove('wide');
+    const last = i === LEGS.length - 1;
+    sfx('stamp');
+    stage.innerHTML = `
+      ${hostReaction(leg.id, r.score)}
+      <section class="paper result enter">
+        <div class="result-mark">${PMArt.postmark('DELIVERED', leg.mark, String(r.score))}</div>
+        <div class="result-line">
+          <span><b>${r.score}</b> postage</span>
+          ${leg.par ? `<span class="${bonus ? 'express-yes' : 'muted'}">${bonus ? `Express +${bonus}` : 'No express'} · ${Math.round(secs)}s</span>` : `<span class="muted">${leg.timed ? 'Timed round' : 'Bonus round'}</span>`}
+        </div>
+        ${i < DELIVERIES ? `<div class="letter-earned ${r.score >= CLEAR_CLUE ? '' : 'down'}"><span class="ptile ${r.score >= CLEAR_CLUE ? '' : 'down'}">${r.score >= CLEAR_CLUE ? '✓' : '~'}</span>${r.score >= CLEAR_CLUE ? 'A new clue to the sender arrived, clear as day.' : 'A new clue arrived, but it got smudged in the rain.'}</div>` : ''}
+        <div class="recap">${r.recap || ''}</div>
+      </section>
+      ${i < DELIVERIES ? '<div id="senderHost"></div>' : ''}
+      <div id="nextHost"></div>`;
+    const nextBtn = () => {
+      const toSender = i === DELIVERIES - 1;
+      $('#nextHost').innerHTML = last || (toSender && senderState.solved)
+        ? `<button class="btn primary big" id="next">${last ? 'Back to the sorting office' : 'Finish the route'}</button>`
+        : `<button class="seal-btn" id="next"><span class="seal">${i + 2}</span><span>Open: ${LEGS[i + 1].title}</span></button>`;
+      $('#next').onclick = () => { sfx('paper'); last ? finishRoute() : openLeg(i + 1); };
+    };
+    if (i < DELIVERIES) PMGames.senderCard($('#senderHost'), day.sender, senderState, { delivered: DELIVERIES, onSolved: () => { senderSolved(); nextBtn(); } });
+    nextBtn();
+    window.scrollTo({ top: 0 });
+  }
+
+  function finishRoute() {
+    const total = results.reduce((a, r) => a + r.score + r.bonus, 0);
+    const record = { issue, results, total, timeMs: Clock.total, at: Date.now(), v: 3 };
+    if (!params.has('replay') || !store.get('day:' + issue)) {
+      store.set('day:' + issue, record);
+      updateStats(record);
+    }
+    summary(record, false);
+  }
+
+  // ───────── summary + share ─────────
+  const gradeFor = total => GRADES.find(([min]) => total >= min)[1];
+  const gradeName = g => GRADE_NAME[g[0]];
+  const rankFor = total => { const g = gradeFor(total); return `Grade ${g} · ${gradeName(g)}`; };
+
+  function shareText(rec) {
+    const lines = [`Postmarked No. ${rec.issue} 📮`];
+    rec.results.forEach(r => lines.push(legOf(r.id).id === 'sender' ? `Sender: ${r.emoji}` : r.emoji));
+    const bonus = rec.results.reduce((a, r) => a + r.bonus, 0);
+    lines.push(`${rec.total} postage · ${fmtTime(rec.timeMs)}${bonus ? ` · express +${bonus}` : ''}`);
+    lines.push(rankFor(rec.total));
+    lines.push(compareLink(rec));
+    return lines.join('\n');
+  }
+  function compareLink(rec) {
+    const base = location.protocol.startsWith('http') ? location.origin + location.pathname : 'https://YOUR-SITE/';
+    const q = new URLSearchParams({ from: store.get('name', '') || 'A friend', no: rec.issue, s: rec.results.map(r => r.score + r.bonus).join('.'), t: Math.round(rec.timeMs / 1000) });
+    return `${base}?${q}`;
+  }
+
+  function compareHTML(rec) {
+    const rivals = rivalsFor(rec.issue);
+    if (!rivals.length) return '';
+    const me = store.get('name', '') || 'You';
+    return rivals.map(rv => {
+      const rows = rec.results.map((r, k) => {
+        const mine = r.score + r.bonus, theirs = rv.scores[k];
+        const l = legOf(r.id);
+        return `<tr><td>${l.title}</td><td class="${mine > theirs ? 'win' : ''}">${mine}</td><td class="${theirs > mine ? 'win' : ''}">${theirs ?? '—'}</td></tr>`;
+      }).join('');
+      const iWin = rec.total > rv.total, tie = rec.total === rv.total;
+      return `
+        <section class="paper versus enter">
+          <span class="small-caps">Head to head · No. ${rec.issue}</span>
+          <h2>${tie ? 'A dead heat' : iWin ? `You beat ${esc(rv.name)}` : `${esc(rv.name)} wins this one`}</h2>
+          <table class="ledger vs-table">
+            <tr class="vs-head"><td></td><td>${esc(me)}</td><td>${esc(rv.name)}</td></tr>
+            ${rows}
+            <tr class="vs-total"><td>Total</td><td class="${iWin ? 'win' : ''}">${rec.total}</td><td class="${!iWin && !tie ? 'win' : ''}">${rv.total}</td></tr>
+            <tr><td>Route time</td><td>${fmtTime(rec.timeMs)}</td><td>${rv.timeMs ? fmtTime(rv.timeMs) : '—'}</td></tr>
+          </table>
+        </section>`;
+    }).join('');
+  }
+
+  // Wins/losses against each person who has sent you results.
+  function scoreboardHTML() {
+    const rivals = store.get('rivals', {});
+    const tally = {};
+    Object.entries(rivals).forEach(([no, byName]) => {
+      const mine = store.get('day:' + no);
+      if (!mine) return;
+      Object.values(byName).forEach(rv => {
+        const t = tally[rv.name] = tally[rv.name] || { w: 0, l: 0, d: 0 };
+        if (mine.total > rv.total) t.w++; else if (mine.total < rv.total) t.l++; else t.d++;
+      });
+    });
+    const names = Object.keys(tally);
+    if (!names.length) return '';
+    return `<section class="paper scoreboard enter"><span class="small-caps">Household scoreboard</span>
+      ${names.map(n => `<div class="sb-row"><span class="hand sb-name">vs ${esc(n)}</span><span class="sb-score"><b>${tally[n].w}</b>–<b>${tally[n].l}</b>${tally[n].d ? `<small> (${tally[n].d} tied)</small>` : ''}</span></div>`).join('')}
+    </section>`;
+  }
+
+  function summary(rec, revisit) {
+    progress(-1, LEGS.length);
+    currentPar = null;
+    meter.querySelector('.meter-time').textContent = fmtTime(rec.timeMs);
+    const bonus = rec.results.reduce((a, r) => a + r.bonus, 0);
+    const text = shareText(rec);
+    if (!revisit) sfx('rare');
+    stage.innerHTML = `
+      <section class="paper manifest receipt enter">
+        <div class="receipt-head">
+          <span class="small-caps">Delivery receipt · No. ${rec.issue}</span>
+          <h1>${revisit ? "Today's mail is delivered" : 'All delivered'}</h1>
+          <div class="grade-wrap"><div class="grade grade-${gradeFor(rec.total)[0]}">${gradeFor(rec.total)}</div><div class="hand rank">${gradeName(gradeFor(rec.total))}</div></div>
+        </div>
+        <div class="totals">
+          <div><b>${rec.total}</b><span>postage</span></div>
+          <div><b>${fmtTime(rec.timeMs)}</b><span>route time</span></div>
+          <div><b>+${bonus}</b><span>express</span></div>
+        </div>
+        <table class="ledger receipt-table">
+          ${rec.results.map(r => { const l = legOf(r.id); return `<tr><td class="ri">${PMArt.icon[l.id]}</td><td>${l.title}<div class="em">${r.emoji}</div></td><td class="num">${r.score + r.bonus}</td></tr>`; }).join('')}
+        </table>
+        <div class="receipt-mark">${PMArt.postmark('POSTMARKED', shortDate, String(rec.total))}</div>
+        <button class="btn primary big" id="share">Send your results</button>
+        <pre class="share-preview">${esc(text)}</pre>
+        <p class="share-tip">The link lets whoever you send it to compare their route with yours.</p>
+      </section>
+      ${compareHTML(rec)}
+      ${scoreboardHTML()}
+      ${passportHTML(getStats())}
+      <button class="btn big" id="albumBtn">Open your stamp album</button>
+      <p class="sign-off hand">Pip will be back tomorrow morning with more mail.</p>`;
+    $('#share').onclick = () => {
+      if (!store.get('name', '')) {
+        const n = prompt('Sign your postcard. What name should your results show?', '');
+        if (n && n.trim()) store.set('name', n.trim().slice(0, 24));
+      }
+      const t = shareText(rec);
+      stage.querySelector('.share-preview').textContent = t;
+      share(t);
+    };
+    $('#albumBtn').onclick = () => album(() => summary(rec, true));
+  }
+
+  // ───────── stamp album ─────────
+  function album(back) {
+    progress(-1, 0);
+    const got = store.get('album', {});
+    const slots = Math.max(todayNumber(), ...Object.keys(got).map(Number), 6);
+    const owned = Object.keys(got).length;
+    stage.innerHTML = `
+      <section class="album enter">
+        <header class="album-head">
+          <span class="small-caps">Stamp album</span>
+          <h1>${owned} of ${slots} collected</h1>
+          <p class="muted">Guess who sent the day's mail to add their stamp.</p>
+        </header>
+        <div class="album-grid">
+          ${Array.from({ length: slots }, (_, k) => {
+            const s = got[k + 1];
+            return s
+              ? `<figure class="album-slot"><div class="stamp-perf album-stamp"><div class="stamp-face t-${s.tint || 'sky'}"><span class="album-emoji">${s.emoji}</span><span class="stamp-val">No.${k + 1}</span></div></div><figcaption>${esc(s.name)}</figcaption></figure>`
+              : `<figure class="album-slot empty"><div class="album-hole">No.${k + 1}</div><figcaption>&nbsp;</figcaption></figure>`;
+          }).join('')}
+        </div>
+      </section>
+      <button class="btn big" id="albumBack">Back</button>`;
+    $('#albumBack').onclick = back;
+    window.scrollTo({ top: 0 });
+  }
+
+  async function share(text) {
+    const mobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+    if (mobile && navigator.share) {
+      try { await navigator.share({ text }); return; } catch (e) { if (e && e.name === 'AbortError') return; }
+    }
+    try { await navigator.clipboard.writeText(text); toast('Copied. Paste it in a text.'); }
+    catch { prompt('Copy your results:', text); }
+  }
+
+  // ───────── passport (local stats) ─────────
+  function getStats() { return store.get('stats', { played: 0, streak: 0, best: 0, lastIssue: 0 }); }
+  function updateStats(rec) {
+    const s = getStats();
+    if (s.lastIssue === rec.issue) return;
+    s.played++;
+    s.streak = s.lastIssue === rec.issue - 1 ? s.streak + 1 : 1;
+    s.best4 = Math.max(s.best4 || 0, rec.total);
+    s.lastIssue = rec.issue;
+    store.set('stats', s);
+  }
+  function passportHTML(s) {
+    return `<section class="passport-card enter">
+      <div class="pc-cover"><span class="small-caps">Passport</span>${PMArt.icon.customs}</div>
+      <div class="pc-stats">
+        <div><b>${s.played}</b><span>routes</span></div>
+        <div><b>${s.streak}</b><span>day streak</span></div>
+        <div><b>${s.best4 ? gradeFor(s.best4) : '—'}</b><span>best</span></div>
+      </div></section>`;
+  }
+
+  // ───────── sound toggle ─────────
+  const muteBtn = $('#mute');
+  const paintMute = () => {
+    muteBtn.innerHTML = PMSound.muted
+      ? '<svg viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M17 9l5 6M22 9l-5 6"/></svg>'
+      : '<svg viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>';
+    muteBtn.setAttribute('aria-pressed', String(PMSound.muted));
+  };
+  muteBtn.onclick = () => { PMSound.toggle(); paintMute(); sfx('tick'); };
+  paintMute();
+
+  // ───────── footer ─────────
+  $('#foot').innerHTML = `<span>Postmarked · a daily mail route</span>
+    <span class="dev">Playtest: ${Array.from({ length: 12 }, (_, k) => `<a href="?day=${k + 1}&replay">${k + 1}</a>`).join(' ')}</span>`;
+
+  home();
+})();

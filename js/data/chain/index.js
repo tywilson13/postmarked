@@ -1,0 +1,1067 @@
+// Chain Letter prompts. Built by tools/build-chain.js. Each answer list lives in its own file and loads on its day.
+window.PM_CHAIN_INDEX = {
+ "artists": {
+  "noun": "famous artist",
+  "plural": "Famous artists",
+  "starts": [
+   "Pablo Picasso",
+   "Vincent van Gogh",
+   "Leonardo da Vinci",
+   "Claude Monet",
+   "Frida Kahlo",
+   "Andy Warhol",
+   "Salvador Dalí",
+   "Rembrandt",
+   "Michelangelo",
+   "Edvard Munch",
+   "Gustav Klimt",
+   "Henri Matisse"
+  ],
+  "kind": null,
+  "size": 800,
+  "v": "60dfe3b6"
+ },
+ "athletes": {
+  "noun": "famous athlete",
+  "plural": "Famous athletes",
+  "starts": [
+   "Michael Jordan",
+   "Serena Williams",
+   "Usain Bolt",
+   "Muhammad Ali",
+   "Pelé",
+   "Lionel Messi",
+   "Tiger Woods",
+   "Babe Ruth",
+   "Wayne Gretzky",
+   "Simone Biles",
+   "Roger Federer",
+   "Jesse Owens"
+  ],
+  "kind": null,
+  "size": 592,
+  "v": "d55d48cd"
+ },
+ "authors": {
+  "noun": "author",
+  "plural": "Authors",
+  "starts": [
+   "William Shakespeare",
+   "Charles Dickens",
+   "Jane Austen",
+   "J.K. Rowling",
+   "Stephen King",
+   "Agatha Christie",
+   "Mark Twain",
+   "Ernest Hemingway",
+   "Leo Tolstoy",
+   "Dr. Seuss",
+   "Roald Dahl",
+   "Virginia Woolf"
+  ],
+  "kind": null,
+  "size": 642,
+  "v": "a49e3293"
+ },
+ "baked-goods": {
+  "noun": "bread or pastry",
+  "plural": "Breads & pastries",
+  "starts": [
+   "Bagel",
+   "Croissant",
+   "Naan",
+   "Pita",
+   "Sourdough",
+   "Focaccia",
+   "Tortilla",
+   "Muffin",
+   "Pretzel"
+  ],
+  "kind": "foods",
+  "size": 485,
+  "v": "99e7264f"
+ },
+ "birds": {
+  "noun": "bird",
+  "plural": "Birds",
+  "starts": [
+   "Robin",
+   "Eagle",
+   "Owl",
+   "Pelican",
+   "Toucan",
+   "Swan",
+   "Dove",
+   "Heron",
+   "Kestrel",
+   "Lark",
+   "Gull",
+   "Tern"
+  ],
+  "kind": "animals",
+  "size": 746,
+  "v": "71cc7621"
+ },
+ "board-games": {
+  "noun": "board or card game",
+  "plural": "Board & card games",
+  "starts": [
+   "Chess",
+   "Scrabble",
+   "Backgammon",
+   "Mastermind",
+   "Monopoly",
+   "Checkers",
+   "Snakes and Ladders",
+   "Ludo",
+   "Battleship",
+   "Clue",
+   "Trivial Pursuit",
+   "Risk"
+  ],
+  "kind": null,
+  "size": 452,
+  "v": "8f806006"
+ },
+ "books": {
+  "noun": "book",
+  "plural": "Books",
+  "starts": [
+   "Pride and Prejudice",
+   "Nineteen Eighty Four",
+   "Brave New World",
+   "Of Mice and Men",
+   "War and Peace",
+   "Crime and Punishment",
+   "Anna Karenina",
+   "Don Quixote"
+  ],
+  "kind": null,
+  "size": 803,
+  "v": "34a3a134"
+ },
+ "boys-names": {
+  "noun": "boy’s name",
+  "plural": "Boys’ names",
+  "starts": [
+   "James",
+   "Daniel",
+   "Ethan",
+   "Noah",
+   "Ryan",
+   "Adam",
+   "Nathan",
+   "Luke",
+   "Oliver",
+   "Samuel",
+   "Michael"
+  ],
+  "kind": null,
+  "size": 3437,
+  "v": "cec57089"
+ },
+ "bugs": {
+  "noun": "bug",
+  "plural": "Bugs & creepy-crawlies",
+  "starts": [
+   "Ant",
+   "Beetle",
+   "Earwig",
+   "Moth",
+   "Spider",
+   "Slug",
+   "Snail",
+   "Wasp",
+   "Termite",
+   "Locust",
+   "Aphid"
+  ],
+  "kind": "animals",
+  "size": 705,
+  "v": "bfc6356a"
+ },
+ "candy": {
+  "noun": "candy or chocolate bar",
+  "plural": "Candy & chocolate",
+  "starts": [
+   "Snickers",
+   "Toblerone",
+   "Skittles",
+   "Starburst",
+   "Lollipop",
+   "Mars",
+   "Kit Kat",
+   "Lindt",
+   "Fudge",
+   "Nougat"
+  ],
+  "kind": "foods",
+  "size": 417,
+  "v": "31432b63"
+ },
+ "capitals": {
+  "noun": "capital city",
+  "plural": "Capital cities",
+  "starts": [
+   "Paris",
+   "London",
+   "Tokyo",
+   "Rome",
+   "Berlin",
+   "Madrid",
+   "Cairo",
+   "Lima",
+   "Athens",
+   "Oslo",
+   "Kabul",
+   "Dublin"
+  ],
+  "kind": null,
+  "size": 356,
+  "v": "f2b06bcd"
+ },
+ "cars": {
+  "noun": "car brand or model",
+  "plural": "Car brands & models",
+  "starts": [
+   "Porsche",
+   "Jaguar",
+   "Ford",
+   "Honda",
+   "Toyota",
+   "Tesla",
+   "Nissan",
+   "Renault",
+   "Peugeot",
+   "Dodge",
+   "Mazda",
+   "Kia"
+  ],
+  "kind": null,
+  "size": 1165,
+  "v": "5a88410c"
+ },
+ "cartoon-characters": {
+  "noun": "cartoon character",
+  "plural": "Cartoon characters",
+  "starts": [
+   "Mickey Mouse",
+   "Homer Simpson",
+   "Scooby-Doo",
+   "Cinderella",
+   "Garfield",
+   "Mario",
+   "Bart Simpson",
+   "Ariel",
+   "Simba",
+   "Donald Duck",
+   "Stitch",
+   "Peter Pan"
+  ],
+  "kind": null,
+  "size": 686,
+  "v": "db25c693"
+ },
+ "cheeses": {
+  "noun": "cheese",
+  "plural": "Cheeses",
+  "starts": [
+   "Cheddar",
+   "Brie",
+   "Gouda",
+   "Feta",
+   "Mozzarella",
+   "Gruyere",
+   "Camembert",
+   "Ricotta",
+   "Paneer"
+  ],
+  "kind": "foods",
+  "size": 364,
+  "v": "add3e966"
+ },
+ "cities": {
+  "noun": "city",
+  "plural": "Cities",
+  "starts": [
+   "Chicago",
+   "Boston",
+   "Paris",
+   "Seattle",
+   "Denver",
+   "Atlanta",
+   "Tokyo",
+   "London",
+   "Madrid",
+   "Dublin",
+   "Dallas",
+   "Berlin",
+   "Toronto",
+   "Houston",
+   "Rome"
+  ],
+  "kind": null,
+  "size": 43174,
+  "v": "a434ea91"
+ },
+ "clothing": {
+  "noun": "clothing item",
+  "plural": "Clothes & shoes",
+  "starts": [
+   "Shirt",
+   "Trousers",
+   "Dress",
+   "Jacket",
+   "Hat",
+   "Sandal",
+   "Scarf",
+   "Sweater",
+   "Socks",
+   "Gown",
+   "Blouse",
+   "Boot"
+  ],
+  "kind": null,
+  "size": 453,
+  "v": "c865cdde"
+ },
+ "dances": {
+  "noun": "dance",
+  "plural": "Dances",
+  "starts": [
+   "Tango",
+   "Salsa",
+   "Foxtrot",
+   "Samba",
+   "Rumba",
+   "Bolero",
+   "Charleston",
+   "Polka",
+   "Mambo",
+   "Hora",
+   "Flamenco",
+   "Hula"
+  ],
+  "kind": null,
+  "size": 326,
+  "v": "e61f521c"
+ },
+ "desserts": {
+  "noun": "dessert",
+  "plural": "Desserts & sweets",
+  "starts": [
+   "Brownie",
+   "Cheesecake",
+   "Pudding",
+   "Apple pie",
+   "Donut",
+   "Cookie",
+   "Macaron",
+   "Mochi",
+   "Fudge",
+   "Ice cream",
+   "Custard"
+  ],
+  "kind": "foods",
+  "size": 526,
+  "v": "16de3d6c"
+ },
+ "dishes": {
+  "noun": "dish",
+  "plural": "Dishes from around the world",
+  "starts": [
+   "Pizza",
+   "Paella",
+   "Sushi",
+   "Tacos",
+   "Lasagna",
+   "Hummus",
+   "Ramen",
+   "Dumplings",
+   "Burrito",
+   "Falafel",
+   "Gyro"
+  ],
+  "kind": "foods",
+  "size": 781,
+  "v": "309558bd"
+ },
+ "dog-breeds": {
+  "noun": "dog breed",
+  "plural": "Dog breeds",
+  "starts": [
+   "Beagle",
+   "Poodle",
+   "Labrador",
+   "Pug",
+   "Boxer",
+   "Dalmatian",
+   "Corgi",
+   "Collie",
+   "Greyhound",
+   "Schnauzer",
+   "Pomeranian"
+  ],
+  "kind": "animals",
+  "size": 340,
+  "v": "5b6feb19"
+ },
+ "drinks": {
+  "noun": "drink",
+  "plural": "Drinks",
+  "starts": [
+   "Espresso",
+   "Latte",
+   "Green tea",
+   "Root beer",
+   "Sangria",
+   "Coca-Cola",
+   "Smoothie",
+   "Negroni",
+   "Margarita",
+   "Chai",
+   "Lemonade",
+   "Milkshake"
+  ],
+  "kind": "foods",
+  "size": 910,
+  "v": "7b70fd37"
+ },
+ "flowers": {
+  "noun": "flower",
+  "plural": "Flowers",
+  "starts": [
+   "Rose",
+   "Orchid",
+   "Iris",
+   "Marigold",
+   "Dahlia",
+   "Lotus",
+   "Jasmine",
+   "Hibiscus",
+   "Begonia",
+   "Petunia",
+   "Magnolia",
+   "Carnation"
+  ],
+  "kind": "plants",
+  "size": 581,
+  "v": "4fc442db"
+ },
+ "fruits": {
+  "noun": "fruit",
+  "plural": "Fruits",
+  "starts": [
+   "Apple",
+   "Banana",
+   "Grape",
+   "Orange",
+   "Peach",
+   "Lemon",
+   "Mango",
+   "Kiwi",
+   "Pear",
+   "Melon"
+  ],
+  "kind": "foods",
+  "size": 378,
+  "v": "77d3dff3"
+ },
+ "gems": {
+  "noun": "gem or mineral",
+  "plural": "Gems & minerals",
+  "starts": [
+   "Diamond",
+   "Emerald",
+   "Pearl",
+   "Garnet",
+   "Opal",
+   "Jade",
+   "Coral",
+   "Amethyst",
+   "Marble",
+   "Calcite",
+   "Mica",
+   "Sapphire"
+  ],
+  "kind": null,
+  "size": 351,
+  "v": "cf2e84f4"
+ },
+ "girls-names": {
+  "noun": "girl’s name",
+  "plural": "Girls’ names",
+  "starts": [
+   "Emma",
+   "Olivia",
+   "Sarah",
+   "Grace",
+   "Anna",
+   "Rose",
+   "Julia",
+   "Hannah",
+   "Laura",
+   "Megan",
+   "Rachel"
+  ],
+  "kind": null,
+  "size": 4018,
+  "v": "77a6f074"
+ },
+ "herbs-spices": {
+  "noun": "herb or spice",
+  "plural": "Herbs & spices",
+  "starts": [
+   "Basil",
+   "Ginger",
+   "Garlic",
+   "Paprika",
+   "Nutmeg",
+   "Dill",
+   "Mint",
+   "Chives",
+   "Marjoram",
+   "Chili powder",
+   "Cloves",
+   "Turmeric"
+  ],
+  "kind": "foods",
+  "size": 241,
+  "v": "105965b5"
+ },
+ "household": {
+  "noun": "household item",
+  "plural": "Household items",
+  "starts": [
+   "Chair",
+   "Dining table",
+   "Sofa",
+   "Lamp",
+   "Kettle",
+   "Fridge",
+   "Toaster",
+   "Bed",
+   "Mirror",
+   "Rug",
+   "Towel",
+   "Vase"
+  ],
+  "kind": null,
+  "size": 659,
+  "v": "8f9c7ebb"
+ },
+ "instruments": {
+  "noun": "musical instrument",
+  "plural": "Musical instruments",
+  "starts": [
+   "Guitar",
+   "Piano",
+   "Violin",
+   "Trumpet",
+   "Flute",
+   "Banjo",
+   "Clarinet",
+   "Accordion",
+   "Ukulele",
+   "Tabla",
+   "Sitar",
+   "Tuba"
+  ],
+  "kind": null,
+  "size": 378,
+  "v": "63593dc7"
+ },
+ "islands": {
+  "noun": "island",
+  "plural": "Islands",
+  "starts": [
+   "Ireland",
+   "Iceland",
+   "Madagascar",
+   "Sumatra",
+   "Greenland",
+   "Tasmania",
+   "Hokkaido",
+   "Crete",
+   "Malta",
+   "Java",
+   "Cuba",
+   "Sardinia"
+  ],
+  "kind": null,
+  "size": 1143,
+  "v": "30128e1d"
+ },
+ "lakes-seas": {
+  "noun": "lake or sea",
+  "plural": "Lakes, seas & bays",
+  "starts": [
+   "Caspian Sea",
+   "Lake Superior",
+   "Lake Victoria",
+   "Dead Sea",
+   "Red Sea",
+   "Lake Geneva",
+   "Bay of Bengal",
+   "Lake Baikal",
+   "Atlantic Ocean",
+   "Pacific Ocean",
+   "Lake Ontario",
+   "Irish Sea"
+  ],
+  "kind": null,
+  "size": 593,
+  "v": "0a9dc23a"
+ },
+ "landmarks": {
+  "noun": "famous landmark",
+  "plural": "Famous landmarks",
+  "starts": [
+   "Eiffel Tower",
+   "Taj Mahal",
+   "Stonehenge",
+   "Big Ben",
+   "Alhambra",
+   "Acropolis",
+   "Parthenon",
+   "Petra",
+   "Pantheon",
+   "Kremlin",
+   "Louvre",
+   "Angkor Wat"
+  ],
+  "kind": null,
+  "size": 568,
+  "v": "367238a4"
+ },
+ "languages": {
+  "noun": "language",
+  "plural": "Languages",
+  "starts": [
+   "Mandarin Chinese",
+   "Russian",
+   "Latin",
+   "Esperanto",
+   "Italian",
+   "Persian",
+   "Tamil",
+   "Korean",
+   "Norwegian",
+   "Vietnamese",
+   "Portuguese",
+   "Kannada"
+  ],
+  "kind": null,
+  "size": 543,
+  "v": "ff9671b0"
+ },
+ "mammals": {
+  "noun": "mammal",
+  "plural": "Mammals",
+  "starts": [
+   "Elephant",
+   "Lion",
+   "Tiger",
+   "Monkey",
+   "Rabbit",
+   "Horse",
+   "Llama",
+   "Hyena",
+   "Whale",
+   "Bear",
+   "Panda",
+   "Gorilla",
+   "Otter",
+   "Hamster"
+  ],
+  "kind": "animals",
+  "size": 679,
+  "v": "bb4ea19f"
+ },
+ "mountains": {
+  "noun": "mountain or volcano",
+  "plural": "Mountains & volcanoes",
+  "starts": [
+   "Everest",
+   "Kilimanjaro",
+   "Aconcagua",
+   "Matterhorn",
+   "Etna",
+   "Annapurna",
+   "Olympus",
+   "Elbrus",
+   "Andes",
+   "Alps",
+   "Vesuvius",
+   "Ararat"
+  ],
+  "kind": null,
+  "size": 678,
+  "v": "f037106c"
+ },
+ "movies": {
+  "noun": "movie",
+  "plural": "Movies",
+  "starts": [
+   "Titanic",
+   "Shrek",
+   "Gladiator",
+   "Rocky",
+   "Alien",
+   "Jaws",
+   "Ratatouille",
+   "Heat",
+   "Mulan",
+   "Notting Hill"
+  ],
+  "kind": null,
+  "size": 1485,
+  "v": "3421fb3f"
+ },
+ "musicians": {
+  "noun": "musician or band",
+  "plural": "Musicians & bands",
+  "starts": [
+   "Madonna",
+   "Radiohead",
+   "Oasis",
+   "Queen",
+   "Coldplay",
+   "Nirvana",
+   "Prince",
+   "Adele",
+   "Rihanna",
+   "Eminem"
+  ],
+  "kind": null,
+  "size": 1267,
+  "v": "42b2921b"
+ },
+ "pasta-noodles": {
+  "noun": "pasta or noodle",
+  "plural": "Pasta & noodles",
+  "starts": [
+   "Udon",
+   "Ramen",
+   "Soba",
+   "Angel hair",
+   "Lo mein",
+   "Chow mein",
+   "Egg noodles",
+   "Rice noodles",
+   "Glass noodles",
+   "Carbonara",
+   "Pesto pasta",
+   "Pasta primavera"
+  ],
+  "kind": "foods",
+  "size": 418,
+  "v": "8365e202"
+ },
+ "pokemon": {
+  "noun": "Pokémon",
+  "plural": "Pokémon",
+  "starts": [
+   "Bulbasaur",
+   "Squirtle",
+   "Charmander",
+   "Eevee",
+   "Psyduck",
+   "Meowth",
+   "Abra",
+   "Togepi"
+  ],
+  "kind": null,
+  "size": 1025,
+  "v": "34992a83"
+ },
+ "reptiles": {
+  "noun": "reptile or amphibian",
+  "plural": "Reptiles & amphibians",
+  "starts": [
+   "Snake",
+   "Lizard",
+   "Turtle",
+   "Tortoise",
+   "Gecko",
+   "Iguana",
+   "Frog",
+   "Toad",
+   "Newt",
+   "Salamander",
+   "Crocodile",
+   "Alligator",
+   "Cobra",
+   "Python"
+  ],
+  "kind": "animals",
+  "size": 525,
+  "v": "f514470c"
+ },
+ "rivers": {
+  "noun": "river",
+  "plural": "Rivers",
+  "starts": [
+   "Thames",
+   "Nile",
+   "Danube",
+   "Rhine",
+   "Ganges",
+   "Amazon",
+   "Volga",
+   "Niger",
+   "Seine",
+   "Tigris",
+   "Ohio",
+   "Elbe"
+  ],
+  "kind": null,
+  "size": 682,
+  "v": "0ecea01a"
+ },
+ "sauces": {
+  "noun": "sauce or condiment",
+  "plural": "Sauces & condiments",
+  "starts": [
+   "Ketchup",
+   "Mustard",
+   "Mayonnaise",
+   "Salsa",
+   "Soy sauce",
+   "Pesto",
+   "Relish",
+   "Sriracha",
+   "Gravy",
+   "Tartar sauce",
+   "Hummus"
+  ],
+  "kind": "foods",
+  "size": 543,
+  "v": "59f2ad47"
+ },
+ "scientists": {
+  "noun": "scientist or inventor",
+  "plural": "Scientists & inventors",
+  "starts": [
+   "Albert Einstein",
+   "Isaac Newton",
+   "Marie Curie",
+   "Thomas Edison",
+   "Charles Darwin",
+   "Nikola Tesla",
+   "Galileo Galilei",
+   "Alexander Graham Bell",
+   "Stephen Hawking",
+   "Ada Lovelace",
+   "Louis Pasteur",
+   "Gregor Mendel"
+  ],
+  "kind": null,
+  "size": 438,
+  "v": "59bdc45d"
+ },
+ "sea-creatures": {
+  "noun": "fish or sea creature",
+  "plural": "Fish & sea creatures",
+  "starts": [
+   "Eel",
+   "Salmon",
+   "Tuna",
+   "Shark",
+   "Dolphin",
+   "Narwhal",
+   "Crab",
+   "Octopus",
+   "Lobster",
+   "Seal",
+   "Trout",
+   "Squid"
+  ],
+  "kind": "animals",
+  "size": 828,
+  "v": "7bd1706e"
+ },
+ "snacks": {
+  "noun": "snack",
+  "plural": "Snacks",
+  "starts": [
+   "Popcorn",
+   "Pretzel",
+   "Chips",
+   "Kettle chips",
+   "Pringles",
+   "Doritos",
+   "Oreo",
+   "Cheetos",
+   "Beef jerky",
+   "Lay's",
+   "Ruffles",
+   "Fritos",
+   "Cheez-Its",
+   "Tortilla chips"
+  ],
+  "kind": "foods",
+  "size": 581,
+  "v": "2b10c4ad"
+ },
+ "sports": {
+  "noun": "sport",
+  "plural": "Sports",
+  "starts": [
+   "Football",
+   "Tennis",
+   "Cricket",
+   "Golf",
+   "Swimming",
+   "Boxing",
+   "Karate",
+   "Rowing",
+   "Skiing"
+  ],
+  "kind": null,
+  "size": 386,
+  "v": "885b7b7a"
+ },
+ "superheroes": {
+  "noun": "superhero or villain",
+  "plural": "Superheroes & villains",
+  "starts": [
+   "Batman",
+   "Superman",
+   "Spider-Man",
+   "Wonder Woman",
+   "Iron Man",
+   "Thor",
+   "Hulk",
+   "The Joker",
+   "Catwoman",
+   "Aquaman",
+   "Wolverine",
+   "Deadpool"
+  ],
+  "kind": null,
+  "size": 439,
+  "v": "a3bad4f8"
+ },
+ "tools": {
+  "noun": "tool",
+  "plural": "Tools",
+  "starts": [
+   "Hammer",
+   "Hacksaw",
+   "Drill",
+   "Plane",
+   "Trowel",
+   "Wrench",
+   "Level",
+   "Rake",
+   "Ladle",
+   "Grater",
+   "Shovel",
+   "Clamp"
+  ],
+  "kind": null,
+  "size": 717,
+  "v": "02ffdab2"
+ },
+ "toys": {
+  "noun": "toy",
+  "plural": "Toys",
+  "starts": [
+   "Teddy bear",
+   "Spinning top",
+   "Doll",
+   "Scooter",
+   "Jigsaw",
+   "Marbles",
+   "Puppet",
+   "Skateboard"
+  ],
+  "kind": null,
+  "size": 276,
+  "v": "697d6a89"
+ },
+ "trees": {
+  "noun": "tree",
+  "plural": "Trees",
+  "starts": [
+   "Maple",
+   "Pine",
+   "Willow",
+   "Cedar",
+   "Redwood",
+   "Apple",
+   "Olive",
+   "Mango",
+   "Walnut",
+   "Acacia",
+   "Chestnut",
+   "Fig"
+  ],
+  "kind": "plants",
+  "size": 490,
+  "v": "ff86226e"
+ },
+ "tv-shows": {
+  "noun": "TV show",
+  "plural": "TV shows",
+  "starts": [
+   "Seinfeld",
+   "Friends",
+   "Lost",
+   "Dexter",
+   "Sherlock",
+   "Doctor Who",
+   "Mad Men",
+   "Columbo",
+   "Taxi",
+   "Frasier",
+   "Neighbours",
+   "Blackadder"
+  ],
+  "kind": null,
+  "size": 915,
+  "v": "7c9c26a9"
+ },
+ "vegetables": {
+  "noun": "vegetable",
+  "plural": "Vegetables",
+  "starts": [
+   "Carrot",
+   "Potato",
+   "Onion",
+   "Lettuce",
+   "Spinach",
+   "Tomatillo",
+   "Cucumber",
+   "Celery",
+   "Radish",
+   "Peas",
+   "Corn"
+  ],
+  "kind": "foods",
+  "size": 354,
+  "v": "599049e9"
+ },
+ "video-games": {
+  "noun": "video game",
+  "plural": "Video games",
+  "starts": [
+   "Tetris",
+   "Minecraft",
+   "Halo",
+   "Portal",
+   "Quake",
+   "Wolfenstein",
+   "Space Invaders",
+   "Pong",
+   "Super Mario Bros",
+   "The Legend of Zelda",
+   "Grand Theft Auto V",
+   "Grand Theft Auto San Andreas"
+  ],
+  "kind": null,
+  "size": 1710,
+  "v": "c20b7dd7"
+ }
+};
