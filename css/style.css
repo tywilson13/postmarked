@@ -46,6 +46,12 @@ body {
   font-size: 17px;
   line-height: 1.45;
   -webkit-tap-highlight-color: transparent;
+  /* Installed on an iPhone, the page runs under the status bar (black-translucent); these insets are 0 in a browser. */
+  padding-top: env(safe-area-inset-top);
+}
+body::before {
+  content: ""; position: fixed; top: 0; left: 0; right: 0; z-index: 30;
+  height: env(safe-area-inset-top); background: var(--desk);
 }
 button { font: inherit; color: inherit; }
 b { font-weight: 800; }
@@ -65,7 +71,7 @@ h2 { font-size: 28px; }
   background: repeating-linear-gradient(-45deg, var(--red) 0 13px, var(--paper) 13px 20px, var(--navy) 20px 33px, var(--paper) 33px 40px);
 }
 .topbar {
-  position: sticky; top: 0; z-index: 20;
+  position: sticky; top: env(safe-area-inset-top); z-index: 20;
   display: flex; align-items: center; gap: 10px;
   max-width: 600px; margin: 0 auto; padding: 10px 16px;
   background: linear-gradient(var(--desk) 70%, transparent);
@@ -109,7 +115,7 @@ h2 { font-size: 28px; }
 /* ── Layout ───────────────────────────── */
 .stage { max-width: 560px; margin: 0 auto; padding: 10px 16px 40px; }
 .stage.wide { max-width: 940px; }
-.foot { max-width: 560px; margin: 0 auto; padding: 0 16px 36px; display: flex; justify-content: space-between; gap: 10px; font-size: 12.5px; color: rgba(244,236,216,.55); }
+.foot { max-width: 560px; margin: 0 auto; padding: 0 16px calc(36px + env(safe-area-inset-bottom)); display: flex; justify-content: space-between; gap: 10px; font-size: 12.5px; color: rgba(244,236,216,.55); }
 .foot a { color: rgba(244,236,216,.75); margin-left: 4px; }
 
 .enter { animation: enter .4s cubic-bezier(.2,.8,.3,1) both; }
@@ -484,7 +490,7 @@ h2 { font-size: 28px; }
 .share-preview { white-space: pre-wrap; font-family: var(--typed); font-size: 14px; background: var(--paper-2); padding: 12px 14px; margin: 14px 0 0; border-radius: 2px; color: var(--ink); }
 .sign-off { text-align: center; font-size: 22px; color: rgba(244,236,216,.85); }
 .toast {
-  position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%); z-index: 50;
+  position: fixed; left: 50%; bottom: calc(26px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 50;
   background: var(--navy); color: var(--paper); padding: 11px 18px; border-radius: 3px;
   font: 700 14px var(--ui); box-shadow: 0 6px 16px rgba(0,0,0,.35); animation: enter .25s both;
 }

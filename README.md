@@ -51,13 +51,19 @@ cd postmarked
 python -m http.server 8137
 ```
 
-Open http://localhost:8137. For playtesting, `?day=3&replay` jumps to a day and lets you replay it.
+Open http://localhost:8137. For playtesting, `?day=3&replay` jumps to a day and lets you replay it. Add `?dev` to show the playtest links in the footer (they're hidden from players).
 
 ## Put it online (free)
 
-It's plain HTML, CSS and JS with no build step.
+It's plain HTML, CSS and JS with no build step. It's live on GitHub Pages at https://tywilson13.github.io/postmarked/ (public repo, `main` branch, root folder). Every push to `main` republishes it.
+
+### On a phone
+
+Open the link and use **Add to Home Screen** (Safari's Share menu, or Chrome's ⋮ menu). It opens full-screen with Pip's stamp as the icon, and after the first visit it works offline. On iPhone, the home-screen app keeps its scores separately from Safari, so always play from the icon.
+
+**After changing the game**, bump the `?v=` numbers in `index.html` so phones pick up the new files. The offline copy (`sw.js`) always tries the network first, so updates arrive the next time the app opens with signal.
 - **Netlify Drop:** drag the `postmarked` folder onto https://app.netlify.com/drop
-- **GitHub Pages:** push this folder to a repo and turn on Pages
+- **GitHub Pages:** push this folder to a public repo and turn on Pages
 
 ## Content formats
 
@@ -90,6 +96,8 @@ It's plain HTML, CSS and JS with no build step.
 - `tools/`: the build scripts and the editable source lists (`tools/chain-src/`). Not needed to run the game.
 - `js/map.js`: zoomable chart. Low-res shapes always; 1:10m detail for whatever is on screen past 4× zoom. Cities (biggest first) and state/province lines appear as you zoom in.
 - `js/data/map-extra.js`: those cities and lines, from Natural Earth (public domain). Loads only when the map game opens. State lines cover the 9 largest countries.
+- `manifest.json`, `icons/`: the home-screen app name and icons. `node tools/make-icons.js` redraws the icons from Pip in `js/art.js` (needs Chrome or Edge).
+- `sw.js`: offline support. Network first (4-second timeout), falling back to the copy saved last time.
 - `js/sound.js`: synthesized sound effects (mute button in the header)
 - `js/data/world.js`, `world-hi.js`: Natural Earth country shapes via world-atlas (1:50m and 1:10m)
 - Fonts: Alfa Slab One, Libre Franklin, Special Elite and Gochi Hand from Google Fonts

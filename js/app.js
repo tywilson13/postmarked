@@ -454,8 +454,15 @@
   paintMute();
 
   // ───────── footer ─────────
-  $('#foot').innerHTML = `<span>Postmarked · a daily mail route</span>
-    <span class="dev">Playtest: ${Array.from({ length: 12 }, (_, k) => `<a href="?day=${k + 1}&replay">${k + 1}</a>`).join(' ')}</span>`;
+  // Playtest links show only with ?dev in the address (they carry it along, so you can hop between days).
+  $('#foot').innerHTML = `<span>Postmarked · a daily mail route</span>` + (params.has('dev')
+    ? `<span class="dev">Playtest: ${Array.from({ length: 12 }, (_, k) => `<a href="?day=${k + 1}&replay&dev">${k + 1}</a>`).join(' ')}</span>`
+    : '');
+
+  // ───────── offline support (sw.js). Only over https or on localhost. ─────────
+  if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+  }
 
   home();
 })();
