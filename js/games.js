@@ -9,6 +9,8 @@
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
   const shake = el => { if (!el) return; el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake'); };
+  // A stamp hitting the desk: the card it lands on gives a little bump.
+  const thud = el => { if (!el) return; el.classList.remove('thud'); void el.offsetWidth; el.classList.add('thud'); };
   const sfx = name => window.PMSound && PMSound.play(name);
   const fmtNum = n => Math.round(n).toLocaleString();
   const pick = a => a[Math.floor(Math.random() * a.length)];
@@ -137,7 +139,21 @@
     const capEl = stage.querySelector('.lc-cap');
     const cluesEl = stage.querySelector('.lc-clues');
     const fact = stage.querySelector('.pin-fact');
+    const chart = stage.querySelector('.chart');
+    const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const idle = () => map.isSmall() ? 'Tap a region to zoom in, then tap the spot.' : 'Click the spot. Scroll to zoom in close.';
+    const wait = ms => new Promise(r => setTimeout(r, calm ? 0 : ms));
+    // Miles tick up while Gus flies, so the distance lands with the plane.
+    function countMiles(el, miles, ms) {
+      if (calm || ms <= 0) { el.textContent = fmtMi(miles); return; }
+      const t0 = performance.now(), ease = x => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+      const step = now => {
+        const x = Math.min(1, (now - t0) / ms);
+        el.textContent = `${fmtNum(miles * ease(x))} mi`;
+        if (x < 1) requestAnimationFrame(step); else el.textContent = fmtMi(miles);
+      };
+      requestAnimationFrame(step);
+    }
 
     function paintClues(all) {
       const C = cards[i];
@@ -158,6 +174,7 @@
       under.className = 'under-pin muted'; under.textContent = idle();
       btn.textContent = 'Drop pin'; btn.disabled = true; btn.className = 'btn primary';
       fact.hidden = true;
+      chart.querySelectorAll('.map-stamp').forEach(e => e.remove());
       if (i > 0) H.say(pick(['Next postcard!', 'Here’s another one.', 'Off we fly again.']));
       ctx.run();
     }
@@ -178,25 +195,39 @@
       btn.disabled = false;
     });
 
-    btn.onclick = () => {
+    btn.onclick = async () => {
       if (!locked) {
         if (!pinLL) return;
         locked = true;
         ctx.pause();
+        btn.disabled = true;
         const C = cards[i], spot = [C.lon, C.lat];
         const miles = PMMap.distanceMiles(pinLL, spot);
-        map.highlightCountry(C.country);
-        if (miles >= 1) map.drawRoute(pinLL, spot);
-        map.showTarget(spot, C.name);
         const s = Math.round(CLUE_CAP[shown - 1] * pinScore(miles) / 100);
-        sfx(s >= 60 ? 'right' : 'paper');
         results.push({ s, miles, label: C.name, clues: shown });
-        map.fitTo([pinLL, spot], 14);
         paintClues(true);
+        // Frame both points, bring the map on screen, then fly Gus from the pin to the real spot.
+        map.fitTo([pinLL, spot], 14);
+        stage.querySelector('.pm-map').scrollIntoView({ behavior: calm ? 'auto' : 'smooth', block: 'end' });
+        H.say(pick(['Let’s see where I landed…', 'Hold on, flying over now…', 'Wheels up! Let’s check…']));
         under.className = 'under-pin';
-        under.innerHTML = `${fmtMi(miles)} <b class="plus">+${s}</b>`;
+        under.innerHTML = '<span class="miles">0 mi</span>';
+        const flight = miles < 1 ? 0 : Math.min(1700, 700 + miles / 5);
+        await wait(650);
+        if (flight) sfx('fly');
+        countMiles(under.querySelector('.miles'), miles, calm ? 0 : flight);
+        await map.drawRoute(pinLL, spot, calm ? 0 : flight);
+        map.highlightCountry(C.country);
+        map.showTarget(spot, C.name);
+        // The verdict: a stamp on the map, and the score next to the distance.
+        const bull = miles <= 50;
+        under.innerHTML = `<span class="miles">${fmtMi(miles)}</span> <b class="plus">+${s}</b>`;
+        chart.insertAdjacentHTML('beforeend', `<div class="map-stamp"><span class="ink-stamp big slam ${bull || s >= 60 ? 'ink-ok' : s >= 20 ? 'ink-rare' : 'ink-bad'}">${bull ? 'Bullseye' : pinScore(miles) >= 55 ? 'Close' : pinScore(miles) >= 20 ? 'Warm' : 'Far off'} +${s}</span></div>`);
+        thud(chart);
+        sfx(bull ? 'rare' : s >= 60 ? 'right' : s >= 20 ? 'stamp' : 'wrong');
         btn.textContent = i < cards.length - 1 ? 'Next postcard' : 'Done';
         btn.className = 'btn navy';
+        btn.disabled = false;
         if (C.fact) { fact.innerHTML = `<b>${esc(C.name)}</b> ${esc(C.fact)}`; fact.hidden = false; }
         // Gus reacts to the distance itself.
         if (miles <= 60) H.say(pick(['Spot on! That’s right where I landed.', 'Bullseye! You’ve been there, haven’t you?']), 'happy');
@@ -255,7 +286,7 @@
         <ol class="xwords"></ol>
         <div class="center"><button class="btn link" data-act="giveup">Show me the answers</button></div>
       </article>
-      <div class="cross-next"></div>`;
+      <div class="cross-next dock"></div>`;
     const grid = stage.querySelector('.xgrid'), bank = stage.querySelector('.xbank'), list = stage.querySelector('.xwords');
     const fb = stage.querySelector('.feedback');
     const clueBtn = stage.querySelector('[data-act=clue]'), letterBtn = stage.querySelector('[data-act=letter]');
@@ -403,6 +434,9 @@
   // Name things in a category; each must start with the last letter of the one before.
   // Five links, no countdown: pick well rather than fast. Anyone can name a cat (8); an axolotl is worth 20.
   // A known thing with a real descriptor in front counts too: "russet potato", "Arctic fox", "head chef".
+  // Lucky letter: each day one letter pays double. You can't name it directly; you have to land on it by
+  // ending an answer with it, so the planning is choosing what to end on. Dot also says how many answers
+  // she knows for the letter you're on, and how many of those are Priceless.
   const COLORS = 'red green yellow white black purple brown golden orange pink blue grey gray silver';
   const DESCRIPTORS = {
     foods: COLORS + ' baked fried roasted roast grilled steamed boiled mashed scrambled poached smoked pickled stuffed dried fresh raw frozen toasted candied glazed braised sauteed deepfried stirfried panfried barbecue barbecued bbq blackened creamed caramelized whipped russet yukon heirloom wild baby sweet sour spicy hot iced whole homemade crispy salted honey garlic',
@@ -458,6 +492,20 @@
     }
     const lastLetter = s => norm(s).replace(/[^a-z]/g, '').slice(-1).toUpperCase();
     const noun = data.noun || (data.category === 'countries' ? 'country' : 'animal');
+    const nouns = data.plural ? data.plural.toLowerCase() : noun + 's';
+    // Today's lucky letter: one that plenty of answers start with AND end with, so landing on it is a plan,
+    // not a fluke. Never the first letter you're given. Same for everyone on the same day.
+    const startsBy = {}, endsBy = {};
+    idx.entries.forEach(e => { const k = e.keys[0].replace(/[^a-z]/g, ''); if (!k) return; startsBy[k[0]] = (startsBy[k[0]] || 0) + 1; endsBy[k.slice(-1)] = (endsBy[k.slice(-1)] || 0) + 1; });
+    const firstNeed = lastLetter(data.start).toLowerCase();
+    const luckyPool = 'abcdefghijklmnopqrstuvwxyz'.split('').filter(c => c !== firstNeed && (startsBy[c] || 0) >= 6 && (endsBy[c] || 0) >= 3);
+    const seed = [...`${ctx.issue}:${data.category}`].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
+    const lucky = luckyPool.length ? luckyPool[seed % luckyPool.length].toUpperCase() : null;
+    // What Dot knows for a letter, not counting answers already in the chain.
+    function known(L) {
+      const l = L.toLowerCase(), list = idx.entries.filter(e => e.keys[0][0] === l && !used.has(e.id));
+      return { all: list.length, top: list.filter(e => e.tier.key === 'legendary').length };
+    }
     const aNoun = (/^[aeiou]/.test(noun) ? 'an ' : 'a ') + noun;
     let need = lastLetter(data.start), over = false, penalty = 0;
     const used = new Set(), links = [], needed = [need];
@@ -465,9 +513,12 @@
     stage.innerHTML = `
       <article class="telegram chain-card enter">
         <header class="tg-head"><span class="tg-brand">Chain letter</span><span class="tg-no chain-score">0 pts</span></header>
-        <p class="tg-body small-body"><span class="strip">FIVE LINKS <span class="stop">STOP</span> EACH ${noun.toUpperCase()} STARTS WITH THE LAST LETTER OF THE ONE BEFORE <span class="stop">STOP</span> RARER IS WORTH MORE <span class="stop">STOP</span></span></p>
+        <p class="tg-body small-body"><span class="strip">${lucky
+          ? `LUCKY LETTER <b class="lucky-chip">${lucky}</b> <span class="stop">STOP</span> END AN ANSWER WITH ${lucky} AND THE NEXT ONE COUNTS DOUBLE <span class="stop">STOP</span>`
+          : `EACH ${noun.toUpperCase()} STARTS WITH THE LAST LETTER OF THE ONE BEFORE <span class="stop">STOP</span> RARER IS WORTH MORE <span class="stop">STOP</span>`}</span></p>
         <div class="chain-row"><span class="clink start">${esc(data.start)}</span></div>
         <div class="need-wrap"><span class="need-label">Next ${noun} starts with</span><span class="need-letter">${need}</span></div>
+        <p class="need-hint"></p>
         <div class="chain-slots" aria-label="Links used">${'<i></i>'.repeat(LINKS)}</div>
         <form class="answer-row" autocomplete="off">
           <input class="text-input" placeholder="Type ${aNoun}" aria-label="Your answer" autocapitalize="words" autocorrect="off" spellcheck="false">
@@ -485,8 +536,17 @@
     const slots = [...stage.querySelectorAll('.chain-slots i')];
     setTimeout(() => input.focus(), 60);
 
-    const total = () => Math.max(0, Math.min(100, links.reduce((a, l) => a + l.tier.pts, 0) - penalty));
-    const setNeed = L => { need = L; needed.push(L); needEl.textContent = L; needEl.classList.remove('pop-in'); void needEl.offsetWidth; needEl.classList.add('pop-in'); };
+    const hintEl = stage.querySelector('.need-hint');
+    const total = () => Math.max(0, Math.min(100, links.reduce((a, l) => a + l.pts, 0) - penalty));
+    function paintNeed() {
+      const isLucky = need === lucky;
+      needEl.classList.toggle('lucky', isLucky);
+      needEl.dataset.x2 = isLucky ? '×2' : '';
+      const k = known(need);
+      hintEl.innerHTML = (isLucky ? '<b class="lucky-word">Lucky letter! This one counts double.</b> ' : '') +
+        (k.all ? `Dot knows ${fmtNum(k.all)} ${k.all === 1 ? noun : nouns} with ${need}${k.top ? `, <b>${k.top} Priceless</b>` : ', none Priceless'}.` : `Dot can’t think of any with ${need}. Maybe a new letter?`);
+    }
+    const setNeed = L => { need = L; needed.push(L); needEl.textContent = L; needEl.classList.remove('pop-in'); void needEl.offsetWidth; needEl.classList.add('pop-in'); paintNeed(); };
     const say = (msg, cls) => { fb.className = 'feedback ' + (cls || ''); fb.textContent = msg; };
 
     stage.querySelector('form').onsubmit = e => {
@@ -512,21 +572,25 @@
     };
     function accept(r) {
       used.add(r.entry.id);
-      const t = r.entry.tier;
-      links.push({ name: r.name, tier: t });
-      sfx(t.key === 'rare' || t.key === 'legendary' ? 'rare' : 'stamp');
-      slots[links.length - 1].className = 't-' + t.key;
-      row.insertAdjacentHTML('beforeend', `<span class="clink t-${t.key}">${esc(r.name)}<i>${t.name}</i></span>`);
+      const t = r.entry.tier, x2 = need === lucky, pts = t.pts * (x2 ? 2 : 1);
+      links.push({ name: r.name, tier: t, pts, x2 });
+      sfx(x2 || t.key === 'rare' || t.key === 'legendary' ? 'rare' : 'stamp');
+      slots[links.length - 1].className = 't-' + t.key + (x2 ? ' x2' : '');
+      row.insertAdjacentHTML('beforeend', `<span class="clink t-${t.key}${x2 ? ' x2' : ''}">${esc(r.name)}<i>${t.name}${x2 ? ' ×2' : ''}</i></span>`);
       row.scrollLeft = row.scrollWidth;
       scoreEl.textContent = `${total()} pts`;
-      say(`${t.name}! +${t.pts}`, 'good');
-      if (t.key === 'legendary') H.say(pick([`${esc(r.name)}?! Priceless!`, 'Ooh, a priceless one! Tap tap tap!']), 'happy');
+      scoreEl.classList.remove('bump'); void scoreEl.offsetWidth; scoreEl.classList.add('bump');
+      say(x2 ? `Lucky ${need}! ${t.name} ×2 = +${pts}` : `${t.name}! +${t.pts}`, 'good');
+      if (x2) H.say(pick(['My lucky letter! Double postage!', 'Tap tap tap! Lucky letter, double points!']), 'happy');
+      else if (t.key === 'legendary') H.say(pick([`${esc(r.name)}?! Priceless!`, 'Ooh, a priceless one! Tap tap tap!']), 'happy');
       else if (t.key === 'rare') H.say(pick([`A rare one! Lovely.`, `${esc(r.name)}! Not many think of that.`]), 'happy');
       else if (t.key === 'uncommon') H.say(pick(['Ooh, scarce!', 'Nice pick.']), 'happy');
       else H.say(pick(['Got it.', 'Tap tap!', 'Next!', 'Keep going!']));
       input.value = '';
       if (links.length >= LINKS) return end();
-      setNeed(lastLetter(r.key));
+      const nextL = lastLetter(r.key);
+      setNeed(nextL);
+      if (nextL === lucky && links.length < LINKS) setTimeout(() => H.say(`You landed on ${lucky}! Make it a good one.`, 'happy'), 900);
     }
     stage.querySelector('.pass').onclick = () => {
       if (over) return;
@@ -539,6 +603,7 @@
       input.focus();
     };
 
+    paintNeed();
     ctx.run();
 
     function end() {
@@ -559,16 +624,16 @@
       H.say(score >= 80 ? 'Five links, and what a chain!' : score >= 56 ? 'Five links. Nicely picked!' : 'Five links, all delivered.', score >= 56 ? 'happy' : '');
       stage.querySelector('.reveal').innerHTML = `
         <section class="paper reply enter">
-          <div class="reply-head"><div class="reply-answer">${links.map(l => l.tier.emoji).join('')}</div><span class="ink-stamp ink-ok">+${score}</span></div>
+          <div class="reply-head"><div class="reply-answer">${links.map(l => l.tier.emoji).join('')}</div><span class="ink-stamp big slam ink-ok">+${score}</span></div>
           ${ideas.length ? `<h4 class="small-caps">Rare ones you could have used</h4><p class="ideas">${ideas.join('<br>')}</p>` : ''}
         </section>
-        <button class="btn navy big">Done</button>`;
+        <div class="dock"><button class="btn navy big">Done</button></div>`;
       const next = stage.querySelector('.reveal .btn');
       next.onclick = () => ctx.done({
         score,
         emoji: links.map(l => l.tier.emoji).join('') || '⬛',
-        recap: `<div class="chain-row recap">${[`<span class="clink start">${esc(data.start)}</span>`, ...links.map(l => `<span class="clink t-${l.tier.key}">${esc(l.name)}<i>${l.tier.name}</i></span>`)].join('')}</div>
-          <p class="center muted small">Common ${TIERS[0].pts} · Scarce ${TIERS[1].pts} · Rare ${TIERS[2].pts} · Priceless ${TIERS[3].pts}${penalty ? ` · new letters −${penalty}` : ''}</p>`
+        recap: `<div class="chain-row recap">${[`<span class="clink start">${esc(data.start)}</span>`, ...links.map(l => `<span class="clink t-${l.tier.key}${l.x2 ? ' x2' : ''}">${esc(l.name)}<i>${l.tier.name}${l.x2 ? ' ×2' : ''}</i></span>`)].join('')}</div>
+          <p class="center muted small">Common ${TIERS[0].pts} · Scarce ${TIERS[1].pts} · Rare ${TIERS[2].pts} · Priceless ${TIERS[3].pts}${lucky ? ` · lucky ${lucky} ×2` : ''}${penalty ? ` · new letters −${penalty}` : ''}</p>`
       });
       next.focus({ preventScroll: true });
       stage.querySelector('.reveal').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -669,7 +734,16 @@
   }
 
   // ───────────────── 5. THE POSTAL SCALE ─────────────────
-  // Estimation on a brass dial. Every guess earns something; closer earns more.
+  // Estimation on a brass dial, with a bet. Set the needle, then say how sure you are: the band around the
+  // needle is your window. If the answer lands inside it you're paid; a narrower window pays more.
+  // Floor: Ballpark is wide enough to catch most honest guesses. Ceiling: a Bullseye on all three.
+  // Windows are measured along the dial (a share of its sweep), so a log dial gets a ratio window for free.
+  const BETS = [
+    { key: 'bull', name: 'Bullseye', w: 0.04, pts: 100, emoji: '🎯' },
+    { key: 'close', name: 'Close', w: 0.10, pts: 60, emoji: '🟩' },
+    { key: 'ball', name: 'Ballpark', w: 0.20, pts: 30, emoji: '🟨' }
+  ];
+  const betOf = k => BETS.find(b => b.key === k);
   function scaleScore(q, g) {
     const a = q.answer;
     if (q.log) { const e = Math.abs(Math.log(g / a)); return e <= 0.05 ? 100 : Math.round(100 * Math.exp(-(e - 0.05) / 0.45)); }
@@ -692,7 +766,6 @@
   }
   const fmtVal = (q, v) => q.year ? String(Math.round(v)) : v.toLocaleString(undefined, { maximumFractionDigits: Math.max(0, decimals(increment(q, v))) });
   const fmtAns = q => q.year ? String(q.answer) : q.answer.toLocaleString(undefined, { maximumFractionDigits: 2 });
-  const scaleEmoji = s => s >= 85 ? '🎯' : s >= 55 ? '🟩' : s >= 25 ? '🟨' : '🟥';
 
   function dialSVG(q) {
     const cx = 150, cy = 150, r = 118;
@@ -705,6 +778,7 @@
     return `<svg viewBox="0 0 300 172" class="dial" aria-hidden="true">
       <path d="M${cx - r - 14} ${cy} A${r + 14} ${r + 14} 0 0 1 ${cx + r + 14} ${cy}" class="rim"/>
       <path d="M${cx - r} ${cy} A${r} ${r} 0 0 1 ${cx + r} ${cy}" class="face"/>
+      <path class="bet-band" d=""/>
       <g class="ticks">${ticks}</g><g class="tick-labels">${labels}</g>
       <text x="${cx}" y="${cy - 52}" text-anchor="middle" class="dial-brand">POSTAL SCALE</text>
       <g class="needle answer-needle" style="display:none"><line x1="${cx}" y1="${cy}" x2="${cx}" y2="${cy - r + 8}"/></g>
@@ -713,14 +787,21 @@
     </svg>`;
   }
 
+  // The band on the dial between t0 and t1: an arc-shaped strip under the ticks.
+  function bandPath(t0, t1) {
+    const cx = 150, cy = 150, ro = 117, ri = 64;
+    const pt = (t, rr) => { const a = Math.PI * (1 - t); return `${(cx + rr * Math.cos(a)).toFixed(1)} ${(cy - rr * Math.sin(a)).toFixed(1)}`; };
+    return `M${pt(t0, ro)} A${ro} ${ro} 0 0 1 ${pt(t1, ro)} L${pt(t1, ri)} A${ri} ${ri} 0 0 0 ${pt(t0, ri)} Z`;
+  }
+
   function scale(root, qs, ctx) {
-    const H = withHost(root, 'scale', pick(['Three parcels to weigh. Set the dial to your best guess.', 'Parcels for the scale! Close counts, so have a go.']));
+    const H = withHost(root, 'scale', pick(['Three parcels to weigh. Set the dial, then tell me how sure you are.', 'Parcels for the scale! Guess the number, then place your bet.']));
     const stage = H.body;
     let i = 0;
     const results = [];
     function show() {
       const q = qs[i];
-      let t = 0, locked = false, moved = false;
+      let t = 0, locked = false, moved = false, bet = betOf(results.length ? results[results.length - 1].bet.key : 'close');
       stage.innerHTML = `
         <article class="scale-card enter">
           <header class="sc-head"><span class="small-caps">Postal scale</span><span class="pcount">${i + 1} of ${qs.length}</span></header>
@@ -728,22 +809,37 @@
           <div class="dial-wrap">${dialSVG(q)}</div>
           <div class="sc-readout"><button class="nudge" data-d="-1" aria-label="Less">−</button><span class="sc-val"></span><button class="nudge" data-d="1" aria-label="More">+</button></div>
           <input type="range" class="sc-range" min="0" max="1000" step="1" value="0" aria-label="Your estimate">
+          <div class="bets" role="radiogroup" aria-label="How sure are you?">
+            ${BETS.map(b => `<button type="button" class="bet bet-${b.key}" role="radio" data-k="${b.key}"><b>${b.name}</b><span>pays ${b.pts}</span></button>`).join('')}
+          </div>
+          <p class="bet-note"></p>
           <div class="sc-result" hidden></div>
         </article>
-        <button class="btn primary big" data-act="weigh" disabled>Move the dial to weigh</button>`;
+        <div class="dock"><button class="btn primary big" data-act="weigh" disabled>Move the dial to weigh</button></div>`;
       const range = stage.querySelector('.sc-range');
       const valEl = stage.querySelector('.sc-val');
       const needle = stage.querySelector('.guess-needle');
       const ansNeedle = stage.querySelector('.answer-needle');
       const btn = stage.querySelector('[data-act=weigh]');
       const res = stage.querySelector('.sc-result');
+      const band = stage.querySelector('.bet-band');
+      const note = stage.querySelector('.bet-note');
+      const card = stage.querySelector('.scale-card');
       const value = () => roundVal(q, fromT(q, t));
       const angle = tt => -90 + 180 * Math.max(0, Math.min(1, tt));
+      const windowOf = () => [Math.max(0, t - bet.w), Math.min(1, t + bet.w)];
       const paint = () => {
         if (moved && btn.disabled && !locked) { btn.disabled = false; btn.textContent = 'Weigh it'; }
         needle.setAttribute('transform', `rotate(${angle(t)} 150 150)`);
         valEl.innerHTML = `${fmtVal(q, value())}<small>${esc(q.unit)}</small>`;
+        stage.querySelectorAll('.bet').forEach(b => { const on = b.dataset.k === bet.key; b.classList.toggle('on', on); b.setAttribute('aria-checked', String(on)); b.disabled = locked; });
+        card.dataset.bet = bet.key;
+        if (!moved) { band.setAttribute('d', ''); note.innerHTML = 'Set the dial, then pick how sure you are.'; return; }
+        const [t0, t1] = windowOf();
+        band.setAttribute('d', bandPath(t0, t1));
+        if (!locked) note.innerHTML = `Pays <b>${bet.pts}</b> if it’s between <b>${fmtVal(q, roundVal(q, fromT(q, t0)))}</b> and <b>${fmtVal(q, roundVal(q, fromT(q, t1)))}</b> ${esc(q.unit)}.`;
       };
+      stage.querySelectorAll('.bet').forEach(b => b.onclick = () => { if (locked) return; bet = betOf(b.dataset.k); sfx('tick'); paint(); });
       range.oninput = () => { t = +range.value / 1000; moved = true; paint(); };
       stage.querySelectorAll('.nudge').forEach(b => b.onclick = () => {
         if (locked) return;
@@ -770,22 +866,37 @@
 
       btn.onclick = () => {
         if (!locked) {
+          if (!moved) return;
           locked = true;
           ctx.pause();
           range.disabled = true;
-          const g = value(), s = scaleScore(q, g);
-          results.push({ q, g, s });
+          svg.classList.add('locked');
+          const g = value();
+          const hit = Math.abs(toT(q, g) - toT(q, q.answer)) <= bet.w + 1e-9;
+          const s = hit ? bet.pts : 0;
+          results.push({ q, g, s, hit, bet });
+          paint();
+          note.innerHTML = '';
           ansNeedle.style.display = '';
-          ansNeedle.setAttribute('transform', `rotate(${angle(toT(q, q.answer))} 150 150)`);
-          sfx(s >= 55 ? 'right' : 'paper');
+          // The answer needle swings over from the guess, like a scale settling.
+          ansNeedle.setAttribute('transform', `rotate(${angle(t)} 150 150)`);
+          requestAnimationFrame(() => requestAnimationFrame(() => ansNeedle.setAttribute('transform', `rotate(${angle(toT(q, q.answer))} 150 150)`)));
           const diff = g === q.answer ? 'Exactly right!' : g > q.answer ? 'A little heavy.' : 'A little light.';
           res.hidden = false;
-          res.innerHTML = `<div class="sc-compare"><span>You <b>${fmtVal(q, g)}</b></span><span class="ans">Actual <b>${fmtAns(q)}</b> ${esc(q.unit)}</span><span class="ink-stamp ${s >= 55 ? 'ink-ok' : 'ink-common'}">+${s}</span></div>
+          res.innerHTML = `<div class="sc-compare"><span>You <b>${fmtVal(q, g)}</b></span><span class="ans">Actual <b>${fmtAns(q)}</b> ${esc(q.unit)}</span></div>
             <p class="sc-fact"><b>${diff}</b> ${esc(q.fact)}</p>`;
-          if (s >= 85) H.say(pick(['Bang on! You’ve a feel for this.', 'Spot on. I couldn’t have weighed it better.']), 'happy');
-          else if (s >= 55) H.say(pick(['Very close!', 'Not bad at all. Nearly there.']), 'happy');
-          else if (s >= 25) H.say(pick(['In the right sort of range.', 'Not too far off.']));
-          else H.say(pick(['Oof! That one surprises everyone.', 'Goodness, a heavy surprise.']), 'oops');
+          // The verdict lands once the needle has settled.
+          setTimeout(() => {
+            card.classList.add(hit ? 'won' : 'lost');
+            res.insertAdjacentHTML('afterbegin', `<div class="sc-verdict"><span class="ink-stamp big slam ${hit ? 'ink-ok' : 'ink-bad'}">${hit ? `${bet.name} +${s}` : 'Missed +0'}</span></div>`);
+            sfx(hit ? (bet.key === 'bull' ? 'rare' : 'right') : 'wrong');
+            thud(card);
+            if (hit && bet.key === 'bull') H.say(pick(['Bullseye! You’ve a feel for this.', 'Bang on, and you knew it. Splendid!']), 'happy');
+            else if (hit && bet.key === 'close') H.say(pick(['Inside the window. Nicely judged!', 'Close, just like you said.']), 'happy');
+            else if (hit) H.say(pick(['Safe and sound, right in the ballpark.', 'In the ballpark. Every parcel counts!']), 'happy');
+            else if (bet.key === 'bull') H.say(pick(['A brave bet! Not this time.', 'Oof, so close to glory.']), 'oops');
+            else H.say(pick(['Oof! That one surprises everyone.', 'Goodness, a heavy surprise.']), 'oops');
+          }, 650);
           btn.textContent = i < qs.length - 1 ? 'Next parcel' : 'Done';
           btn.className = 'btn navy big';
         } else if (++i < qs.length) show();
@@ -793,8 +904,8 @@
           const score = Math.round(results.reduce((a, r) => a + r.s, 0) / results.length);
           ctx.done({
             score,
-            emoji: results.map(r => scaleEmoji(r.s)).join(''),
-            recap: `<table class="ledger">${results.map(r => `<tr><td>${esc(r.q.q)}</td><td>${fmtVal(r.q, r.g)} vs ${fmtAns(r.q)}</td><td>+${r.s}</td></tr>`).join('')}</table>`
+            emoji: results.map(r => r.hit ? r.bet.emoji : '🟥').join(''),
+            recap: `<table class="ledger">${results.map(r => `<tr><td>${esc(r.q.q)}</td><td>${r.bet.name} · ${fmtVal(r.q, r.g)} vs ${fmtAns(r.q)}</td><td>+${r.s}</td></tr>`).join('')}</table>`
           });
         }
       };

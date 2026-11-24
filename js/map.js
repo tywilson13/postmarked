@@ -236,8 +236,22 @@
       },
       showTarget(ll, label) { return marker(ll, 'target', label); },
       highlightCountry(name) { target = name; paintClasses(); },
-      drawRoute(a, b) {
-        routeLayer.append('path').datum({ type: 'LineString', coordinates: [a, b] }).attr('class', 'route').attr('d', path);
+      // The flight from the pin to the real spot. With ms > 0 the line draws itself along the great circle,
+      // led by a little gold dot (Gus), and the promise resolves when it lands.
+      drawRoute(a, b, ms = 0) {
+        const line = routeLayer.append('path').attr('class', 'route');
+        if (!ms) { line.datum({ type: 'LineString', coordinates: [a, b] }).attr('d', path); return Promise.resolve(); }
+        const along = d3.geoInterpolate(a, b);
+        const head = routeLayer.append('circle').attr('class', 'route-head');
+        return new Promise(done => {
+          line.transition().duration(ms).ease(d3.easeCubicInOut)
+            .attrTween('d', () => t => {
+              const p = along(Math.max(t, 0.002)), [x, y] = projection(p);
+              head.attr('cx', x).attr('cy', y).attr('r', 5 / k);
+              return path({ type: 'LineString', coordinates: [a, p] });
+            })
+            .on('end interrupt', () => { head.remove(); line.datum({ type: 'LineString', coordinates: [a, b] }).attr('d', path); done(); });
+        });
       },
       fitTo(lls, maxK = 8) {
         const pts = lls.map(ll => projection(ll));

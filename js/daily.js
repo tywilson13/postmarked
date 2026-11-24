@@ -210,7 +210,7 @@
     const category = chainOrder(cats)[k % cats.length];
     const info = chainInfo(category), lex = (window.PM_CHAIN_INDEX || {})[category] ? null : window.PM_LEXICON[category];
     const starts = info.starts || lex.starts || lex.tiers.common.map(s => s.split('|')[0]);
-    day.chain = { category, noun: info.noun, kind: info.kind || category, start: nth(starts, Math.floor(k / cats.length), 'start:' + category) };
+    day.chain = { category, noun: info.noun, plural: info.plural, kind: info.kind || category, start: nth(starts, Math.floor(k / cats.length), 'start:' + category) };
     day.theme = `Chain Letter: ${info.plural}`;
 
     day.scale = Array.from({ length: SCALE_PER_DAY }, (_, i) => reframe(nth(scale, k * SCALE_PER_DAY + i, 'scale')));

@@ -2,20 +2,20 @@
 
 A daily air-mail route run by the staff of a riverside sorting office. Each morning brings four deliveries:
 
-1. **Chain Letter** (every day, with Dot the woodpecker): five links, no countdown. Each answer starts with the last letter of the one before. Rarer answers are worth more. The prompt changes daily ("Name a dog breed", "Name a river"…).
+1. **Chain Letter** (every day, with Dot the woodpecker): five links, no countdown. Each answer starts with the last letter of the one before. Rarer answers are worth more, and landing on the day's lucky letter doubles the next answer. The prompt changes daily ("Name a dog breed", "Name a river"…).
 2. **One rotating game**, in this order: Where's This From? → Cross Post → Missorted → repeat.
-3. **The Postal Scale** (every day, with Bramble the hedgehog): three questions with a number for an answer. Set the dial to your best guess.
+3. **The Postal Scale** (every day, with Bramble the hedgehog): three questions with a number for an answer. Set the dial to your best guess, then bet on how close you are.
 4. **Who Sent This?** (every day, with Pip the otter): an animal sent today's mail. Each delivery brings a clue. In the last round you can open the rest. Guess early for more.
 
 Every game has a floor (anyone scores something) and a ceiling (room to shine). No "know it or you don't."
 
 | Game | Host | Skill | What you do | Content |
 |---|---|---|---|---|
-| Chain Letter | Dot the woodpecker | Rarity | Five answers to a prompt, chained by last letter. Common 8 · Scarce 12 · Rare 16 · Priceless 20 | 57 prompts: 52 in `js/data/chain/` (one file each, loaded on its day) plus animals, countries, foods, plants, jobs in `lexicon*.js` |
-| Where's This From? | Gus the goose | Maps | Three postcards from real places. The front says what it is and roughly where, the postmark names the country, the message gives it away. Pin the spot: closer and earlier scores more | `bank/places-*.js` (240 places, 80 per level) |
+| Chain Letter | Dot the woodpecker | Rarity | Five answers to a prompt, chained by last letter. Common 8 · Scarce 12 · Rare 16 · Priceless 20. A daily **lucky letter** doubles the answer after you land on it (end an answer with it). Dot shows how many answers she knows for the current letter | 57 prompts: 52 in `js/data/chain/` (one file each, loaded on its day) plus animals, countries, foods, plants, jobs in `lexicon*.js` |
+| Where's This From? | Gus the goose | Maps | Three postcards from real places. The front says what it is and roughly where, the postmark names the country, the message gives it away. Pin the spot: closer and earlier scores more. On reveal Gus flies from your pin to the real spot, the miles count up, and a stamp lands (Bullseye within 50 mi) | `bank/places-*.js` (240 places, 80 per level) |
 | Cross Post | Hazel the owl | Words | A themed mini crossword of 5 words with a letter bank and no clues to start. Clues and letters for sale | `bank/themes-*.js` (90 themes × 12 words; the grid is built fresh each time) |
 | Missorted | Mabel the pigeon | Puzzle | Three sacks packed wrong. Swap stamps until each holds a group | `bank/missorted.js` |
-| The Postal Scale | Bramble the hedgehog | Estimation | Set a brass dial. Closer earns more | `bank/scale*.js` (3 per day) |
+| The Postal Scale | Bramble the hedgehog | Estimation | Set a brass dial, then bet: Bullseye (±4% of the dial) pays 100, Close (±10%) 60, Ballpark (±20%) 30, a miss 0. The window shows as a band on the dial. `BETS` in `js/games.js` | `bank/scale*.js` (3 per day) |
 | Who Sent This? | Pip the otter | Mystery | Name the animal from its clues | `bank/senders.js` |
 
 - Each delivery is worth up to 100 postage, plus up to 20 for an **Express** bonus. The sender is worth up to 60.

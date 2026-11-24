@@ -5,15 +5,15 @@
 
   const CATALOGUE = [
     { id: 'chain', mark: 'CHAIN LETTER', title: 'Chain Letter', skill: 'Rarity', par: 90,
-      how: 'Five links. Each answer has to start with the last letter of the one before. Anything that fits the prompt counts, but rarer answers are worth more: Common 8, Scarce 12, Rare 16, Priceless 20. No countdown, so choose well (a quick chain still earns Express).' },
+      how: 'Five links. Each answer has to start with the last letter of the one before. Anything that fits the prompt counts, but rarer answers are worth more: Common 8, Scarce 12, Rare 16, Priceless 20. Each day has a lucky letter: end an answer with it and the next one counts double. No countdown, so choose well (a quick chain still earns Express).' },
     { id: 'places', mark: 'WHERE FROM', title: 'Where’s This From?', skill: 'Maps', par: 90,
       how: 'Three postcards from three real places. The front says what it is and roughly where, the postmark names the country, and the message gives it away. Pin the spot whenever you’re ready. Closer pins and fewer clues earn more.' },
     { id: 'cross', mark: 'CROSS POST', title: 'Cross Post', skill: 'Words',
       how: 'A little crossword where every word fits today’s theme. There are no clues, just a bank holding exactly the letters you need. Tap a word, then tap tiles to fill it, or type. Stuck? Clues and letters are for sale.', par: 150 },
     { id: 'missorted', mark: 'MISSORTED', title: 'Missorted', skill: 'Puzzle', par: 60,
       how: 'Three sacks got packed wrong. Swap stamps between sacks until each holds a group of four. A sack seals when it’s right. Fewer swaps score more.' },
-    { id: 'scale', mark: 'POSTAL SCALE', title: 'The Postal Scale', skill: 'Estimation', par: 45,
-      how: 'Three parcels, three questions with a number for an answer. Set the dial to your best guess. Close counts!' },
+    { id: 'scale', mark: 'POSTAL SCALE', title: 'The Postal Scale', skill: 'Estimation', par: 60,
+      how: 'Three parcels, three questions with a number for an answer. Set the dial to your best guess, then bet on how sure you are. If the answer lands in your window you’re paid: Bullseye 100, Close 60, Ballpark 30. Miss and it’s nothing, so only go narrow when you’re confident.' },
     { id: 'sender', mark: 'WHO SENT IT', title: 'Who Sent This?', skill: 'Mystery', par: 0,
       how: 'Last chance to name the animal who sent today’s mail. Open more clues if you need them. Each one lowers the prize a little.' },
     // Retired games, kept so receipts from earlier days still show the right names.
@@ -254,7 +254,7 @@
         <div class="recap">${r.recap || ''}</div>
       </section>
       ${i < DELIVERIES ? '<div id="senderHost"></div>' : ''}
-      <div id="nextHost"></div>`;
+      <div id="nextHost" class="dock"></div>`;
     const nextBtn = () => {
       const toSender = i === DELIVERIES - 1;
       $('#nextHost').innerHTML = last || (toSender && senderState.solved)

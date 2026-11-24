@@ -44,7 +44,8 @@
     stamp: () => { tone(110, 0.12, { type: 'sine', vol: 0.35, slide: -50 }); noise(0.07, { vol: 0.18, freq: 600 }); },
     wrong: () => { tone(220, 0.12, { type: 'square', vol: 0.05 }); tone(185, 0.18, { type: 'square', vol: 0.05, at: 0.09 }); },
     right: () => { tone(660, 0.12, { type: 'triangle', vol: 0.1 }); tone(880, 0.2, { type: 'triangle', vol: 0.1, at: 0.08 }); },
-    rare: () => [784, 988, 1175, 1568].forEach((f, i) => tone(f, 0.25, { type: 'triangle', vol: 0.08, at: i * 0.07 }))
+    rare: () => [784, 988, 1175, 1568].forEach((f, i) => tone(f, 0.25, { type: 'triangle', vol: 0.08, at: i * 0.07 })),
+    fly: () => { noise(0.9, { vol: 0.05, freq: 900, q: 0.4 }); tone(300, 0.9, { type: 'sine', vol: 0.025, slide: 260 }); }
   };
 
   window.PMSound = {
