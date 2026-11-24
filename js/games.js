@@ -410,10 +410,6 @@
     plants: COLORS + ' wild dwarf giant sweet common climbing creeping weeping english french japanese chinese',
     jobs: 'head chief assistant senior junior deputy apprentice master lead vice executive general associate'
   };
-  // Answers a player taught the game ("It's real, count it"), remembered on this device.
-  const taughtKey = cat => 'pm:taught:' + cat;
-  const taught = cat => { try { return JSON.parse(localStorage.getItem(taughtKey(cat)) || '[]'); } catch { return []; } };
-  const teach = (cat, name) => { try { const t = taught(cat); if (!t.includes(name)) { t.push(name); localStorage.setItem(taughtKey(cat), JSON.stringify(t)); } } catch { /* private mode */ } };
 
   // A narrow prompt's answers live in js/data/chain/<id>.js and load only on its day (the app asks early, on the
   // home screen). The built-in categories are already in PM_LEXICON.
@@ -448,8 +444,6 @@
     const LINKS = 5, PASS_COST = 2;
     const idx = buildIndex(lex);
     const common = TIERS[0];
-    const addEntry = name => idx.add({ id: norm(name), display: name, names: [name], keys: [norm(name)], tier: common, taught: true });
-    taught(data.category).forEach(n => { if (!idx.byKey.has(norm(n))) addEntry(n); });
     const descriptors = new Set((DESCRIPTORS[data.kind] || DESCRIPTORS[data.category] || '').split(' ').filter(Boolean));
     const titled = raw => raw.trim().replace(/\s+/g, ' ').replace(/^./, c => c.toUpperCase());
     // "Russet potato": descriptors in front of something Dot knows. Counts as Common.
@@ -509,19 +503,9 @@
       if (first !== need) { say(`That starts with ${first}. You need ${need}.`, 'bad'); H.say(`Needs to start with ${need}!`, 'oops'); shake(input); return input.select(); }
       if (used.has(r.unknown ? key : r.entry.id)) { say('Already in your chain.', 'bad'); H.say('You’ve used that one.', 'oops'); shake(input); return input.select(); }
       if (r.unknown) {
-        // Dot's book will never have everything. If it's real, the player can count it anyway.
-        const name = titled(raw);
-        fb.className = 'feedback bad';
-        fb.innerHTML = `Dot doesn't know “${esc(name)}”. <button class="btn small teach" type="button">It's real, count it <small>+${common.pts}</small></button>`;
-        H.say(pick([`I don't know that ${noun}! Is it real?`, 'Never heard of that one. Teach me?']), 'oops');
-        fb.querySelector('.teach').onclick = () => {
-          if (over || need !== first || used.has(key)) return;
-          teach(data.category, name);
-          const e = addEntry(name);
-          accept({ entry: e, key: e.id, name });
-          H.say('Ooh, I’ve learned a new one. Thank you!', 'happy');
-          input.focus();
-        };
+        say(`Dot doesn't know “${titled(raw)}”. Try another ${noun}.`, 'bad');
+        H.say(pick([`I don't know that ${noun}!`, 'Never heard of that one.']), 'oops');
+        shake(input);
         return input.select();
       }
       accept(r);
@@ -544,7 +528,6 @@
       if (links.length >= LINKS) return end();
       setNeed(lastLetter(r.key));
     }
-    input.addEventListener('input', () => { if (fb.querySelector('.teach')) say(''); });
     stage.querySelector('.pass').onclick = () => {
       if (over) return;
       penalty += PASS_COST;
@@ -568,7 +551,7 @@
       sfx('paper');
       // Show a few rare finds for letters the player actually faced.
       const ideas = [...new Set(needed)].slice(-4).map(L => {
-        const fits = t => idx.entries.find(e => e.tier.key === t && !e.taught && e.keys[0][0] === L.toLowerCase() && !used.has(e.id));
+        const fits = t => idx.entries.find(e => e.tier.key === t && e.keys[0][0] === L.toLowerCase() && !used.has(e.id));
         const pick = fits('rare') || fits('legendary');   // Rare first: better known, so a surer suggestion
         return pick ? `<b>${L}</b> ${esc(pick.display)} <span class="muted">(${pick.tier.name})</span>` : '';
       }).filter(Boolean);
