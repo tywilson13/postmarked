@@ -783,6 +783,98 @@
     render();
   }
 
+  // ───────────────── RETURN TO SENDER ─────────────────
+  // Five envelopes to put in order ("Oldest to newest"). Tap two to swap them, then send. Envelopes in the
+  // right slot are delivered and stay put; the rest come back stamped RETURN TO SENDER. Four sends.
+  // Floor: every delivered envelope pays a little even if the order never comes right. Ceiling: right first time.
+  const ORDER_TRIES = 4, ORDER_PAY = [100, 75, 55, 40], ORDER_EACH = 7;
+  function order(root, data, ctx) {
+    const H = withHost(root, 'order', pick([
+      `These five came back undelivered. Can you put them in order, <b>${esc(data.top.toLowerCase())}</b> first?`,
+      `A homing pigeon always gets there in the end. Put these in order, <b>${esc(data.top.toLowerCase())}</b> at the top.`]));
+    const stage = H.body;
+    const n = data.items.length;
+    const items = data.items.map((x, k) => ({ ...x, k, tint: TINTS[k % TINTS.length], rot: (Math.random() * 2.4 - 1.2).toFixed(1) }));
+    // Start with nothing in its right slot, so the first send isn't a freebie.
+    let slots;
+    do { slots = shuffle(items); } while (slots.some((x, s) => x.k === s));
+    const locked = new Set();            // slots already delivered
+    let sel = null, tries = 0, over = false, lastBounced = new Set(), history = [];
+
+    function render(msg, cls) {
+      stage.innerHTML = `
+        <section class="paper rts-card">
+          <div class="rts-head"><span class="rts-ask">${esc(data.ask)}</span>
+            <span class="rts-tries" aria-label="${ORDER_TRIES - tries} sends left">${Array.from({ length: ORDER_TRIES }, (_, t) => `<i class="${t < tries ? 'used' : ''}"></i>`).join('')}</span></div>
+          <div class="rts-end top">▲ ${esc(data.top)}</div>
+          <ol class="rts-list">${slots.map((x, s) => {
+            const ok = locked.has(s), back = lastBounced.has(s);
+            return `<li class="rts-slot">
+              <span class="rts-no">${s + 1}</span>
+              <button class="rts-env ${x.tint} ${ok ? 'ok' : ''} ${back ? 'back' : ''} ${sel === s ? 'sel' : ''}" data-s="${s}" style="--rot:${x.rot}deg" ${ok || over ? 'disabled' : ''}>
+                <span class="rts-t">${esc(x.t)}</span>
+                ${over ? `<span class="rts-v">${esc(x.show)}</span>` : ''}
+                ${over ? '' : ok ? '<span class="rts-mark good">DELIVERED</span>' : back ? '<span class="rts-mark bad">RETURN TO<br>SENDER</span>' : ''}
+              </button></li>`;
+          }).join('')}</ol>
+          <div class="rts-end bottom">▼ ${esc(data.bottom)}</div>
+          <p class="feedback ${cls || ''}" role="status">${msg || (sel != null ? 'Now tap the envelope to swap it with.' : tries ? 'Swap the returned envelopes, then send again.' : 'Tap two envelopes to swap them.')}</p>
+          ${over ? '' : `<div class="answer-row"><button class="btn primary big" data-act="send">Send ${tries ? 'again' : 'them'} (${ORDER_TRIES - tries} left)</button></div>`}
+        </section>`;
+      stage.querySelectorAll('.rts-env').forEach(b => b.onclick = () => tap(+b.dataset.s));
+      const send = stage.querySelector('[data-act=send]');
+      if (send) send.onclick = submit;
+    }
+
+    function tap(s) {
+      if (over || locked.has(s)) return;
+      if (sel == null || sel === s) { sel = sel === s ? null : s; sfx('tick'); return render(); }
+      [slots[sel], slots[s]] = [slots[s], slots[sel]];
+      lastBounced.delete(sel); lastBounced.delete(s);
+      sel = null; sfx('paper');
+      render();
+    }
+
+    function submit() {
+      if (over) return;
+      tries++; sel = null;
+      const right = slots.map((x, s) => x.k === s);
+      history.push(right);
+      const fresh = right.filter((r, s) => r && !locked.has(s)).length;
+      right.forEach((r, s) => r && locked.add(s));
+      lastBounced = new Set(right.map((r, s) => r ? -1 : s).filter(s => s >= 0));
+      if (locked.size === n) return end(true);
+      sfx(fresh ? 'stamp' : 'wrong');
+      shake(stage.querySelector('.rts-list'));
+      if (tries >= ORDER_TRIES) return end(false);
+      const left = n - locked.size;
+      H.say(fresh ? pick(['Some got through! Coo.', 'Getting closer. Those ones are delivered.', 'Lovely, a few more to sort.']) : pick(['All of those came back, I’m afraid.', 'Hmm, none of the new ones went through.']), fresh ? 'happy' : 'oops');
+      render(`${fresh ? `${fresh} delivered. ` : ''}${left} came back. ${ORDER_TRIES - tries} send${ORDER_TRIES - tries === 1 ? '' : 's'} left.`, fresh ? 'good' : 'bad');
+    }
+
+    function end(won) {
+      over = true;
+      ctx.pause();
+      const got = locked.size;
+      if (!won) slots = items.slice();       // lay them out the right way round
+      lastBounced = new Set();
+      const score = won ? ORDER_PAY[tries - 1] : got * ORDER_EACH;
+      if (won) { sfx('right'); H.say(tries === 1 ? 'Every one delivered first time! Are you part pigeon?' : 'All delivered. Thank you, dear!', 'happy'); }
+      else H.say('Never mind. Here’s the order they were meant to go in.', 'oops');
+      render(won ? (tries === 1 ? 'Perfect. Right first time!' : `All delivered in ${tries} sends.`) : `${got} of ${n} delivered.`, won ? 'good' : '');
+      const grid = history.map(row => row.map(r => r ? '🟩' : '⬜').join('')).join('<br>');
+      setTimeout(() => ctx.done({
+        score,
+        emoji: won ? '🟨'.repeat(tries - 1) + '🟩' : '🟥',
+        recap: `<p class="center"><b>${won ? `${tries} send${tries === 1 ? '' : 's'}` : 'Returned'}</b> · ${esc(data.ask)}</p>
+          <ol class="rts-recap">${items.map(x => `<li><span>${esc(x.t)}</span><b>${esc(x.show)}</b></li>`).join('')}</ol>
+          <p class="center rts-grid">${grid}</p>
+          ${data.fact ? `<p class="note center">${esc(data.fact)}</p>` : ''}`
+      }), 1400);
+    }
+    render();
+  }
+
   // ───────────────── 5. THE POSTAL SCALE ─────────────────
   // Estimation on a brass dial, with a bet. Set the needle, then say how sure you are: the band around the
   // needle is your window. If the answer lands inside it you're paid; a narrower window pays more.
@@ -1049,7 +1141,7 @@
   }
 
   window.PMGames = {
-    places, cross, chain, missorted, scale, sender, senderCard, senderValue,
+    places, cross, chain, missorted, order, scale, sender, senderCard, senderValue,
     TIERS, loadChain, _matchAnswer: matchAnswer, _buildIndex: buildIndex, _minSwaps: minSwaps, _scaleScore: scaleScore
   };
 })();

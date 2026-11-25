@@ -34,11 +34,14 @@
   const CLASSIC = window.POSTMARKED_DAYS || [];      // the five original handmade days
   const senders = [...CLASSIC.map(d => d.sender), ...(window.PM_SENDERS || [])];
   const missorted = [...CLASSIC.map(d => d.missorted), ...(window.PM_MISSORTED || [])];
+  const orders = window.PM_ORDER || [];
   const scale = [...CLASSIC.flatMap(d => d.scale), ...(window.PM_SCALE || [])];
   const places = window.PM_PLACES || [];
   const themes = window.PM_THEMES || [];
 
   const ROTATION = ['places', 'cross', 'missorted'];
+  // From No. 19 on, Return to Sender takes Missorted's turn. Earlier back issues keep Missorted, as they were played.
+  const ORDER_FROM = 19, ORDER_SKIP = Math.floor((ORDER_FROM - 1) / ROTATION.length);
   const SCALE_PER_DAY = 3;
 
   // ───────── Chain Letter categories ─────────
@@ -201,8 +204,9 @@
 
   function build(issue) {
     const k = Math.max(0, issue - 1);
-    const game = ROTATION[k % ROTATION.length];
     const j = Math.floor(k / ROTATION.length);  // how many times today's rotating game has come round before
+    let game = ROTATION[k % ROTATION.length];
+    if (game === 'missorted' && issue >= ORDER_FROM && orders.length) game = 'order';
     const day = { issue, route: ['chain', game, 'scale', 'sender'], game };
 
     // Chain Letter every day, walking the categories in a fixed order so none comes twice in a row.
@@ -220,6 +224,8 @@
       day.places = [1, 2, 3].map(L => nth(byLevel(places, l => l === L), j, 'place' + L));
     } else if (game === 'cross') {
       day.cross = themes.length ? crossFor(nth(themes, j, 'theme'), issue) : null;
+    } else if (game === 'order') {
+      day.order = nth(orders, j - ORDER_SKIP, 'order');
     } else {
       day.missorted = nth(missorted, j, 'missorted');
     }
@@ -234,7 +240,7 @@
 
   window.PMDaily = {
     build,
-    counts: () => ({ senders: senders.length, missorted: missorted.length, scale: scale.length, places: places.length, themes: themes.length, chain: chainCats() }),
+    counts: () => ({ senders: senders.length, missorted: missorted.length, order: orders.length, scale: scale.length, places: places.length, themes: themes.length, chain: chainCats() }),
     _nth: nth, _reframe: reframe, _crossFor: crossFor
   };
 })();

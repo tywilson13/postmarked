@@ -3,7 +3,7 @@
 A daily air-mail route run by the staff of a riverside sorting office. Each morning brings four deliveries:
 
 1. **Chain Letter** (every day, with Dot the woodpecker): five links, no countdown. Each answer starts with the last letter of the one before. Rarer answers are worth more, and landing on the day's lucky letter doubles the next answer. The prompt changes daily ("Name a dog breed", "Name a river"…).
-2. **One rotating game**, in this order: Where's This From? → Cross Post → Missorted → repeat.
+2. **One rotating game**, in this order: Where's This From? → Cross Post → Return to Sender → repeat. (Return to Sender replaced Missorted from No. 19; back issues before that still play Missorted.)
 3. **The Postal Scale** (every day, with Bramble the hedgehog): three questions with a number for an answer. Set the dial to your best guess, then bet on how close you are.
 4. **Who Sent This?** (every day, with Pip the otter): an animal sent today's mail. Each delivery brings a clue. In the last round you can open the rest. Guess early for more.
 
@@ -14,7 +14,8 @@ Every game has a floor (anyone scores something) and a ceiling (room to shine). 
 | Chain Letter | Dot the woodpecker | Rarity | Five answers to a prompt, chained by last letter. Common 8 · Scarce 12 · Rare 16 · Priceless 20. A daily **lucky letter** doubles the answer after you land on it (end an answer with it). Dot shows how many answers she knows for the current letter. Close spellings count ("millefioule" → Mille-feuille; Dot says what she read). On food days a flavor in front of a known answer counts as Common ("Espresso cake", "Elderflower lemonade"). "New letter" never hands out the lucky letter | 57 prompts: 52 in `js/data/chain/` (one file each, loaded on its day) plus animals, countries, foods, plants, jobs in `lexicon*.js` |
 | Where's This From? | Gus the goose | Maps | Three postcards from real places. The front says what it is and roughly where, the postmark names the country, the message gives it away. Pin the spot: closer and earlier scores more. On reveal Gus flies from your pin to the real spot, the miles count up, and a stamp lands (Bullseye within 50 mi) | `bank/places-*.js` (240 places, 80 per level) |
 | Cross Post | Hazel the owl | Words | A themed mini crossword of 5 words with a letter bank and no clues to start. Clues and letters for sale | `bank/themes-*.js` (90 themes × 12 words; the grid is built fresh each time) |
-| Missorted | Mabel the pigeon | Puzzle | Three sacks packed wrong. Swap stamps until each holds a group | `bank/missorted.js` |
+| Return to Sender | Mabel the pigeon | Hunches | Put five envelopes in order ("Oldest to newest"). Tap two to swap, then send: the ones in the right slot are delivered and lock, the rest bounce. Four sends: 100 / 75 / 55 / 40, or 7 per delivered envelope if it never comes right | `bank/order-*.js` |
+| Missorted (retired after No. 18) | Mabel the pigeon | Puzzle | Three sacks packed wrong. Swap stamps until each holds a group | `bank/missorted.js` |
 | The Postal Scale | Bramble the hedgehog | Estimation | Set a brass dial, then bet: Bullseye (±4% of the dial) pays 100, Close (±10%) 60, Ballpark (±20%) 30, a miss 0. The window shows as a band on the dial. `BETS` in `js/games.js` | `bank/scale*.js` (3 per day) |
 | Who Sent This? | Pip the otter | Mystery | Name the animal from its clues | `bank/senders.js` |
 
@@ -36,7 +37,7 @@ Every game has a floor (anyone scores something) and a ceiling (room to shine). 
 | Sender animals | 65 | 65 days, then reshuffles |
 | Places | 240 | 8 months (3 per map day, every 3rd day) |
 | Cross Post themes | 90 | 9 months (1 per cross day, every 3rd day); the same theme comes out as a different grid next time |
-| Missorted puzzles | 45 | 4.5 months (every 3rd day) |
+| Return to Sender puzzles | 135 | 13 months (every 3rd day) |
 
 **Scale dial window:** hand-written ranges tend to put the answer near the middle of the dial. Each day, `reframe()` slides the dial window so the answer lands anywhere from 10% to 90% of the dial, never near the middle. The window keeps the original width, so scoring doesn't change. The needle starts at zero, like a real scale.
 
@@ -75,7 +76,8 @@ Open the link and use **Add to Home Screen** (Safari's Share menu, or Chrome's �
 - `themes-*.js`: `{ theme, level: 1–3, words: [12 × { w, clue }] }`. Words are 3–8 letters, A–Z only. `crossFor()` in `js/daily.js` fits 5 of them into a grid of at most 9 × 9, seeded by the issue number.
 - `scale*.js`: `{ q, answer, unit, min, max, log?, year?, fact, topic }`. Use `log: true` when the range spans powers of ten.
 - `senders.js`: `{ name, emoji, tint, answers: "Koala|Koala bear", clues: [5, vague → easy], nope: { "Sloth": "nudge" } }`.
-- `missorted.js`: `{ groups: [3 × { name, items: [4] }], sneaky }`. Every item must fit only its own group.
+- `order-*.js`: `{ ask, top, bottom, level: 1–3, topic, items: [5 × { t, v, show }], fact }`. Items are listed in the right order, top first, and `v` must rise or fall strictly down the list. `t` ≤ 22 characters, `show` ≤ 18.
+- `missorted.js` (retired game, still used by back issues 1–18): `{ groups: [3 × { name, items: [4] }], sneaky }`.
 - Lexicon entries: `"Name|Alias"`, in tiers common / uncommon (Scarce) / rare / legendary (Priceless). `"Holland|same:Netherlands"` adds aliases to an existing entry.
   - Extra entries live in `lexicon-extra-*.js`, which push onto the base lists.
   - **Plurals** (s, es, ies, ves, oes) and small typos match automatically.

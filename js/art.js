@@ -168,7 +168,7 @@
     hazel: { name: 'Hazel', kind: 'owl', svg: hazel }
   };
   // Who runs which counter at the sorting office.
-  const HOST_OF = { chain: 'dot', places: 'gus', postmark: 'gus', cross: 'hazel', cryptic: 'hazel', missorted: 'mabel', scale: 'bramble', sender: 'pip' };
+  const HOST_OF = { chain: 'dot', places: 'gus', postmark: 'gus', cross: 'hazel', cryptic: 'hazel', missorted: 'mabel', order: 'mabel', scale: 'bramble', sender: 'pip' };
   const hostFor = id => hosts[HOST_OF[id] || 'pip'];
 
   const icon = {
@@ -180,6 +180,7 @@
     postmark: `<svg viewBox="0 0 32 32" class="ico"><rect x="3" y="8" width="20" height="15" rx="1"/><path d="M3 8l10 8 10-8"/><circle cx="23" cy="20" r="6" class="fill-red"/><path d="M23 17v3.5l2 1.5" stroke="#f4ecd8"/></svg>`,
     chain: `<svg viewBox="0 0 32 32" class="ico"><g transform="rotate(-40 16 16)"><rect x="2" y="12" width="16" height="8" rx="4"/><rect x="14" y="12" width="16" height="8" rx="4" class="red-line"/></g></svg>`,
     missorted: `<svg viewBox="0 0 32 32" class="ico"><path d="M5 12c0-3 3-5 6-5s6 2 6 5v14H5z"/><path d="M17 14c0-3 3-5 5-5s5 2 5 5v12H17z"/><path d="M9 16l8 4M20 16l-6 6" class="red-line"/></svg>`,
+    order: `<svg viewBox="0 0 32 32" class="ico"><rect x="9" y="4" width="19" height="7" rx="1"/><rect x="9" y="13" width="19" height="7" rx="1"/><rect x="9" y="22" width="19" height="7" rx="1"/><path d="M4 6v20M2 23l2 3 2-3" class="red-line"/></svg>`,
     scale: `<svg viewBox="0 0 32 32" class="ico"><path d="M6 22a10 10 0 0 1 20 0z"/><path d="M16 22l5-7" class="red-line"/><path d="M4 26h24"/><path d="M10 6h12l-2 6H12z"/></svg>`,
     cross: `<svg viewBox="0 0 32 32" class="ico"><path d="M4 12h24v8H4zM12 4h8v24h-8z"/><rect x="12" y="12" width="8" height="8" class="fill-red"/></svg>`,
     sender: `<svg viewBox="0 0 32 32" class="ico"><rect x="4" y="8" width="24" height="17" rx="1"/><path d="M4 8l12 9 12-9"/><text x="16" y="29" text-anchor="middle" class="ico-q">?</text><circle cx="24" cy="8" r="4" class="fill-red"/></svg>`,

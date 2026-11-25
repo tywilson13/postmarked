@@ -10,6 +10,8 @@
       how: 'Three postcards from three real places. The front says what it is and roughly where, the postmark names the country, and the message gives it away. Pin the spot whenever you’re ready. Closer pins and fewer clues earn more.' },
     { id: 'cross', mark: 'CROSS POST', title: 'Cross Post', skill: 'Words',
       how: 'A little crossword where every word fits today’s theme. There are no clues, just a bank holding exactly the letters you need. Tap a word, then tap tiles to fill it, or type. Stuck? Clues and letters are for sale.', par: 150 },
+    { id: 'order', mark: 'RETURN TO SENDER', title: 'Return to Sender', skill: 'Hunches', par: 60,
+      how: 'Five envelopes to put in order, like oldest to newest. Tap two to swap them, then send. Any in the right spot get delivered and stay put; the rest come back. Four sends. Right first time pays the most.' },
     { id: 'missorted', mark: 'MISSORTED', title: 'Missorted', skill: 'Puzzle', par: 60,
       how: 'Three sacks got packed wrong. Swap stamps between sacks until each holds a group of four. A sack seals when it’s right. Fewer swaps score more.' },
     { id: 'scale', mark: 'POSTAL SCALE', title: 'The Postal Scale', skill: 'Estimation', par: 60,
