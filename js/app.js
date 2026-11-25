@@ -156,11 +156,10 @@
         <button class="seal-btn" id="go"><span class="seal">P</span><span>${isBack ? 'Open this mail' : "Open today's mail"}</span></button>
         <p class="manifest-note">Somebody sent you mail ${isBack ? 'that day' : 'today'}. Each delivery brings a clue to <b>who it was</b>. The meter only runs while you play, and finishing fast earns an <b>Express</b> bonus.</p>
       </section>
-      ${stats.played ? scoreboardHTML() + passportHTML(stats) + '<button class="btn big" id="albumBtn">Open your stamp album</button>' : ''}
-      ${backBtnHTML()}`;
-    if (stats.played) $('#albumBtn').onclick = () => album(home);
-    wireBack(home);
-    $('#go').onclick = () => { sfx('paper'); Clock.reset(); results = []; senderState = freshSender(); PMMap.loadHiRes(); openLeg(0); };
+      ${stats.played ? scoreboardHTML() + passportHTML(stats) : ''}
+      ${TODAY > 1 && !isBack ? `<p class="menu-hint">Missed a day? <button class="btn link" data-sheet="archive">Back issues</button> are in the menu.</p>` : ''}`;
+    wireSheetLinks(stage);
+    $('#go').onclick = () => { inRoute = true; sfx('paper'); Clock.reset(); results = []; senderState = freshSender(); PMMap.loadHiRes(); openLeg(0); };
     $('#toName').onclick = () => {
       const n = prompt('Who is this mail addressed to?', store.get('name', ''));
       if (n !== null) { store.set('name', n.trim().slice(0, 24)); home(); }
@@ -277,6 +276,7 @@
 
   function finishRoute() {
     const total = results.reduce((a, r) => a + r.score + r.bonus, 0);
+    inRoute = false;
     const record = { issue, results, total, timeMs: Clock.total, at: Date.now(), v: 3 };
     if (!params.has('replay') || !store.get('day:' + issue)) {
       store.set('day:' + issue, record);
@@ -292,7 +292,12 @@
 
   function shareText(rec) {
     const lines = [`Postmarked No. ${rec.issue} 📮`];
-    rec.results.forEach(r => lines.push(legOf(r.id).id === 'sender' ? `Sender: ${r.emoji}` : r.emoji));
+    // The sender's own emoji would give the answer away, so the message only says whether, and how soon.
+    rec.results.forEach(r => {
+      if (legOf(r.id).id !== 'sender') return lines.push(r.emoji);
+      const clue = String(r.emoji).match(/on clue (\d+)/);
+      lines.push(r.score > 0 || clue ? `Sender: ✅${clue ? ` on clue ${clue[1]}` : ''}` : 'Sender: ❔');
+    });
     const bonus = rec.results.reduce((a, r) => a + r.bonus, 0);
     lines.push(`${rec.total} postage · ${fmtTime(rec.timeMs)}${bonus ? ` · express +${bonus}` : ''}`);
     lines.push(rankFor(rec.total));
@@ -379,12 +384,11 @@
       ${compareHTML(rec)}
       ${scoreboardHTML()}
       ${passportHTML(getStats())}
-      <button class="btn big" id="albumBtn">Open your stamp album</button>
-      ${backBtnHTML()}
+      <div class="menu-row"><button class="btn" data-sheet="album">Stamp album</button><button class="btn" data-sheet="archive">Back issues</button></div>
       ${rec.issue < TODAY
         ? `<div class="back-again"><a class="btn link" href="?day=${rec.issue}&replay">Play it again (won't change your score)</a><a class="btn navy big" href="./">Go to today's mail</a></div>`
         : `<p class="sign-off hand">Pip will be back tomorrow morning with more mail.</p>`}`;
-    wireBack(() => summary(rec, true));
+    wireSheetLinks(stage);
     $('#share').onclick = () => {
       if (!store.get('name', '')) {
         const n = prompt('Sign your postcard. What name should your results show?', '');
@@ -394,25 +398,22 @@
       stage.querySelector('.share-preview').textContent = t;
       share(t);
     };
-    $('#albumBtn').onclick = () => album(() => summary(rec, true));
   }
 
   // ───────── back issues: every past day, newest first ─────────
-  const backBtnHTML = () => TODAY > 1 ? '<button class="btn big" id="backBtn">Back issues</button>' : '';
-  const wireBack = back => { const b = $('#backBtn'); if (b) b.onclick = () => { sfx('paper'); archive(back); }; };
   const themeCache = {};
   const themeOf = n => themeCache[n] = themeCache[n] || (() => { try { return PMDaily.build(n).theme; } catch { return ''; } })();
-  function archive(back) {
-    progress(-1, 0);
+  const pastDays = () => Array.from({ length: TODAY - 1 }, (_, k) => TODAY - 1 - k);
+  function archiveHTML() {
     const got = store.get('album', {});
-    const days = Array.from({ length: TODAY - 1 }, (_, k) => TODAY - 1 - k);
+    const days = pastDays();
     const playedCount = days.filter(n => store.get('day:' + n)).length;
     const row = n => {
       const rec = store.get('day:' + n), stamp = got[n];
       const date = new Date(EPOCH.getTime() + (n - 1) * 86400000);
       const when = date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
       const g = rec ? gradeFor(rec.total) : null;
-      return `<a class="ar-row${rec ? ' done' : ''}" href="?day=${n}">
+      return `<a class="ar-row${rec ? ' done' : ''}${n === issue ? ' here' : ''}" href="?day=${n}" data-leave>
         <span class="ar-no"><small>No.</small>${n}</span>
         <span class="ar-mid"><b>${esc(when)}</b><span class="ar-theme">${esc(themeOf(n))}</span></span>
         <span class="ar-end">${rec
@@ -420,28 +421,24 @@
           : '<span class="ar-play">Play</span>'}</span>
       </a>`;
     };
-    stage.innerHTML = `
-      <section class="album archive enter">
+    return `
+      <section class="album archive">
         <header class="album-head">
           <span class="small-caps">Back issues</span>
           <h1>${playedCount} of ${days.length} delivered</h1>
-          <p class="muted">Missed a day? Every past route is here, exactly as it was.</p>
+          <p class="muted">Missed a day? Every past route is here, exactly as it was. They count toward your routes and best grade, not your streak.</p>
         </header>
-        <div class="ar-list">${days.map(row).join('')}</div>
-      </section>
-      <button class="btn big" id="archiveBack">Back</button>`;
-    $('#archiveBack').onclick = back;
-    window.scrollTo({ top: 0 });
+        ${days.length ? `<div class="ar-list">${days.map(row).join('')}</div>` : '<p class="muted center">No back issues yet. Tomorrow, today’s mail will be the first.</p>'}
+      </section>`;
   }
 
   // ───────── stamp album ─────────
-  function album(back) {
-    progress(-1, 0);
+  function albumHTML() {
     const got = store.get('album', {});
-    const slots = Math.max(todayNumber(), ...Object.keys(got).map(Number), 6);
+    const slots = Math.max(TODAY, ...Object.keys(got).map(Number), 6);
     const owned = Object.keys(got).length;
-    stage.innerHTML = `
-      <section class="album enter">
+    return `
+      <section class="album">
         <header class="album-head">
           <span class="small-caps">Stamp album</span>
           <h1>${owned} of ${slots} collected</h1>
@@ -455,10 +452,21 @@
               : `<figure class="album-slot empty"><div class="album-hole">No.${k + 1}</div><figcaption>&nbsp;</figcaption></figure>`;
           }).join('')}
         </div>
-      </section>
-      <button class="btn big" id="albumBack">Back</button>`;
-    $('#albumBack').onclick = back;
-    window.scrollTo({ top: 0 });
+      </section>`;
+  }
+
+  // ───────── how to play ─────────
+  function helpHTML() {
+    const games = ['chain', 'places', 'cross', 'order', 'scale', 'sender'].map(legOfId);
+    return `
+      <section class="paper help">
+        <span class="small-caps">How to play</span>
+        <h1>A daily mail route</h1>
+        <p>Every day brings four deliveries: <b>Chain Letter</b>, one rotating game, <b>The Postal Scale</b>, and <b>Who Sent This?</b> Each delivery pays up to 100 postage, plus up to 20 for an <b>Express</b> finish. The meter only runs while you play.</p>
+        <p>Somebody sent you the mail. Each delivery brings a clue to who it was (a good score sends it clear). Guess them for up to 60 more and their stamp goes in your album.</p>
+        ${games.map(g => `<div class="help-game"><span class="help-host">${PMArt.hostFor(g.id).svg}</span><div><h3>${esc(g.title)} <small>${esc(g.skill)}</small></h3><p>${esc(g.how)}</p></div></div>`).join('')}
+        <p class="muted">The rotating game goes Where’s This From? → Cross Post → Return to Sender. Grades run from S (350+) down to F.</p>
+      </section>`;
   }
 
   async function share(text) {
@@ -497,16 +505,79 @@
       </div></section>`;
   }
 
-  // ───────── sound toggle ─────────
-  const muteBtn = $('#mute');
-  const paintMute = () => {
-    muteBtn.innerHTML = PMSound.muted
-      ? '<svg viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M17 9l5 6M22 9l-5 6"/></svg>'
-      : '<svg viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>';
-    muteBtn.setAttribute('aria-pressed', String(PMSound.muted));
+  // ───────── menu ─────────
+  // A sheet over the page, so opening it mid-route loses nothing (the meter pauses while it's open).
+  // Anything that leaves the page (another day, today's mail) asks first if a route is under way.
+  let inRoute = false, sheetPausedClock = false;
+  const sheet = document.createElement('div');
+  sheet.className = 'sheet'; sheet.hidden = true;
+  document.body.appendChild(sheet);
+  const soundLabel = () => PMSound.muted ? 'Sound is off' : 'Sound is on';
+  function menuHTML() {
+    const got = Object.keys(store.get('album', {})).length;
+    const days = pastDays(), done = days.filter(n => store.get('day:' + n)).length;
+    const item = (attrs, icon, title, sub) => `<${attrs.startsWith('href') ? 'a' : 'button'} class="menu-item" ${attrs}><span class="mi-ico">${icon}</span><span class="mi-text"><b>${title}</b>${sub ? `<small>${sub}</small>` : ''}</span><span class="mi-go">›</span></${attrs.startsWith('href') ? 'a' : 'button'}>`;
+    return `<nav class="menu-list">
+      ${item('href="./" data-leave', '📬', 'Today’s mail', `No. ${TODAY} · ${esc(new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' }))}`)}
+      ${item('data-sheet="archive"', '🗂️', 'Back issues', days.length ? `${done} of ${days.length} delivered` : 'None yet')}
+      ${item('data-sheet="album"', '🖼️', 'Stamp album', `${got} collected`)}
+      ${item('data-sheet="passport"', '🛂', 'Passport & scores', 'Streak, best grade, head to head')}
+      ${item('data-sheet="help"', '❓', 'How to play', 'All the games and scoring')}
+      ${item('data-act="name"', '✏️', 'Your name', esc(store.get('name', '') || 'Not set'))}
+      ${item('data-act="sound"', PMSound.muted ? '🔇' : '🔊', soundLabel(), 'Tap to switch')}
+    </nav>
+    ${inRoute ? '<p class="sheet-note">The meter is paused while the menu is open.</p>' : ''}`;
+  }
+  const VIEWS = {
+    menu: menuHTML, archive: archiveHTML, album: albumHTML, help: helpHTML,
+    passport: () => passportHTML(getStats()) + (scoreboardHTML() || '<p class="muted center sheet-note">Send your results to someone who plays too, and a head-to-head scoreboard shows up here.</p>')
   };
-  muteBtn.onclick = () => { PMSound.toggle(); paintMute(); sfx('tick'); };
-  paintMute();
+  function openSheet(view) {
+    if (sheet.hidden) {
+      sheetPausedClock = Clock.t0 != null;
+      if (sheetPausedClock) Clock.pause();
+      sheet.hidden = false;
+      document.body.classList.add('sheet-open');
+      menuBtn.setAttribute('aria-expanded', 'true');
+    }
+    sheet.innerHTML = `<div class="sheet-backdrop"></div>
+      <div class="sheet-panel" role="dialog" aria-modal="true" aria-label="Menu">
+        <div class="sheet-head">${view === 'menu' ? '<span class="sheet-title">Menu</span>' : '<button class="sheet-nav" data-sheet="menu">‹ Menu</button>'}<button class="sheet-close" aria-label="Close menu">✕</button></div>
+        <div class="sheet-body">${VIEWS[view]()}</div>
+      </div>`;
+    sheet.querySelector('.sheet-body').scrollTop = 0;
+    sheet.querySelector('.sheet-backdrop').onclick = closeSheet;
+    sheet.querySelector('.sheet-close').onclick = closeSheet;
+    wireSheetLinks(sheet);
+    const nameBtn = sheet.querySelector('[data-act=name]');
+    if (nameBtn) nameBtn.onclick = () => {
+      const n = prompt('What name should your mail and results show?', store.get('name', ''));
+      if (n === null) return;
+      store.set('name', n.trim().slice(0, 24));
+      const to = $('#toName'); if (to) to.textContent = recipient();
+      openSheet('menu');
+    };
+    const soundBtn = sheet.querySelector('[data-act=sound]');
+    if (soundBtn) soundBtn.onclick = () => { PMSound.toggle(); sfx('tick'); openSheet('menu'); };
+  }
+  function closeSheet() {
+    if (sheet.hidden) return;
+    sheet.hidden = true; sheet.innerHTML = '';
+    document.body.classList.remove('sheet-open');
+    menuBtn.setAttribute('aria-expanded', 'false');
+    if (sheetPausedClock) Clock.run();
+    sheetPausedClock = false;
+  }
+  // Buttons with data-sheet open that page of the menu; links with data-leave check before abandoning a route.
+  function wireSheetLinks(root) {
+    root.querySelectorAll('[data-sheet]').forEach(b => b.onclick = () => { sfx('paper'); openSheet(b.dataset.sheet); });
+    root.querySelectorAll('[data-leave]').forEach(a => a.onclick = e => {
+      if (inRoute && !confirm('Leave this route? Your progress on it so far won’t be saved.')) e.preventDefault();
+    });
+  }
+  const menuBtn = $('#menuBtn');
+  menuBtn.onclick = () => { sfx('tick'); sheet.hidden ? openSheet('menu') : closeSheet(); };
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet(); });
 
   // ───────── footer ─────────
   // Playtest links show only with ?dev in the address (they carry it along, so you can hop between days).

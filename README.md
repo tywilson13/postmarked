@@ -23,6 +23,8 @@ Every game has a floor (anyone scores something) and a ceiling (room to shine). 
 - The day ends with a **grade** from S down to F (out of about 420: S is 350+, A is 305+, B is 245+, C is 185+, D is 125+). Thresholds are in `GRADES` in `js/app.js`.
 - A delivery scoring 50+ sends its sender clue clear. Otherwise it arrives smudged, and wiping it costs 10.
 - Guessing the sender adds that animal's stamp to your **stamp album**.
+- The **menu** (top right) slides over whatever is on screen: today's mail, back issues, the stamp album, passport and head-to-head scores, how to play, your name, and sound. The meter pauses while it's open, and leaving a route half-played asks first.
+- **Send your results** never names the sender: the message says only whether you guessed them, and on which clue.
 - **Send your results** shares an emoji summary plus a link. Whoever opens it gets a head-to-head comparison and a running household scoreboard. No server needed.
 - Instructions are skipped for a game once you've played it twice.
 
