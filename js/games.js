@@ -520,7 +520,9 @@
           const lower = s => s.replace(/^[A-Z](?=[a-z])/, c => c.toLowerCase());
           const name = [...front.slice(0, d).map(w => w.toLowerCase()), ...(flavor ? [flavor] : []), lower(base.name)]
             .join(' ').replace(/^./, c => c.toUpperCase());
-          return { entry: { id: norm(name), tier: common }, key: norm(name), name, flavored: !!flavor };
+          // The flavour and any descriptors are remembered, so "Funfetti cake, Funfetti bagel…" can't be farmed.
+          const fronts = [...front.slice(0, d).map(norm), ...(flavor ? [norm(flavor)] : [])];
+          return { entry: { id: norm(name), tier: common }, key: norm(name), name, flavored: !!flavor, base: base.entry.id, baseName: lower(base.name), fronts, frontText: flavor || front.slice(0, d).join(' ') };
         }
       }
       return null;
@@ -543,7 +545,13 @@
     const hits = name => targets.filter(L => lettersOf(name).includes(L));
     const MULT = n => [1, 1.5, 2, 3][n];
     // Wrapped in one span: inside a chain link (a flex column) loose <u> tags would each become their own line.
-    const markTargets = name => `<span class="cl-name">${targets.length ? esc(name).replace(new RegExp(`[${targets.join('')}]`, 'gi'), m => `<u>${m}</u>`) : esc(name)}</span>`;
+    const markInner = name => targets.length ? esc(name).replace(new RegExp(`[${targets.join('')}]`, 'gi'), m => `<u>${m}</u>`) : esc(name);
+    const markTargets = name => `<span class="cl-name">${markInner(name)}</span>`;
+    // A flavoured answer only scores bonus letters in the thing itself: "Funfetti bagel" counts the B, G… of bagel.
+    const scored = r => r.baseName || r.name;
+    const linkName = r => r.baseName
+      ? `<span class="cl-name">${esc(r.name.slice(0, r.name.length - r.baseName.length))}${markInner(r.name.slice(-r.baseName.length))}</span>`
+      : markTargets(r.name);
     // What Dot knows that starts with one of these letters, not counting answers already in the chain.
     function known(set) {
       const list = idx.entries.filter(e => (set.includes(e.keys[0][0].toUpperCase()) || set.includes(plain(e.names[0])[0])) && !used.has(e.id));
@@ -551,7 +559,7 @@
     }
     const aNoun = (/^[aeiou]/.test(noun) ? 'an ' : 'a ') + noun;
     let prev = data.start, allowed = lettersOf(prev), over = false, penalty = 0;
-    const used = new Set(), links = [], faced = [allowed];
+    const used = new Set(), usedFronts = new Set(), links = [], faced = [allowed];
 
     stage.innerHTML = `
       <article class="telegram chain-card enter">
@@ -584,7 +592,7 @@
       tilesEl.classList.remove('pop-in'); void tilesEl.offsetWidth; tilesEl.classList.add('pop-in');
       const k = known(allowed);
       hintEl.innerHTML = `Dot knows ${fmtNum(k.all)} that fit${k.bonus ? `, <b>${fmtNum(k.bonus)} with a bonus letter</b>` : ''}.` +
-        (flavorIdx ? ' A flavor in front counts too.' : '');
+        (flavorIdx ? ' A flavor in front counts too, once per flavor.' : '');
     }
     // An answer with no letters ("1917") leaves the letters as they were.
     const setPrev = name => { if (!lettersOf(name).length) return paintNeed(); prev = name; allowed = lettersOf(name); faced.push(allowed); paintNeed(); };
@@ -605,6 +613,8 @@
       const first = firsts[0];
       if (!firsts.some(L => allowed.includes(L))) { say(`That starts with ${first}, and there’s no ${first} in ${prev}.`, 'bad'); H.say(`Start with a letter from ${esc(prev)}!`, 'oops'); shake(input); return input.select(); }
       if (used.has(r.unknown ? key : r.entry.id)) { say('Already in your chain.', 'bad'); H.say('You’ve used that one.', 'oops'); shake(input); return input.select(); }
+      if (r.base && used.has(r.base)) { say(`You’ve already used ${r.baseName} in your chain.`, 'bad'); H.say('Something new, please!', 'oops'); shake(input); return input.select(); }
+      if (r.fronts && r.fronts.some(f => usedFronts.has(f))) { say(`“${titled(r.frontText)}” only counts once per chain.`, 'bad'); H.say('That flavor’s been used!', 'oops'); shake(input); return input.select(); }
       if (r.unknown) {
         say(`Dot doesn't know “${titled(raw)}”. Try another ${noun}.`, 'bad');
         H.say(pick([`I don't know that ${noun}!`, 'Never heard of that one.']), 'oops');
@@ -615,11 +625,13 @@
     };
     function accept(r) {
       used.add(r.entry.id);
-      const t = r.entry.tier, bonus = hits(r.name), mult = MULT(bonus.length), pts = t.pts * mult;
-      links.push({ name: r.name, tier: t, pts, mult });
+      if (r.base) used.add(r.base);
+      (r.fronts || []).forEach(f => usedFronts.add(f));
+      const t = r.entry.tier, bonus = hits(scored(r)), mult = MULT(bonus.length), pts = t.pts * mult;
+      links.push({ name: r.name, html: linkName(r), tier: t, pts, mult });
       sfx(mult > 1 || t.key === 'rare' || t.key === 'legendary' ? 'rare' : 'stamp');
       slots[links.length - 1].className = 't-' + t.key + (mult > 1 ? ' x2' : '');
-      row.insertAdjacentHTML('beforeend', `<span class="clink t-${t.key}${mult > 1 ? ' x2' : ''}">${markTargets(r.name)}<i>${t.name}${mult > 1 ? ' ×' + mult : ''}</i></span>`);
+      row.insertAdjacentHTML('beforeend', `<span class="clink t-${t.key}${mult > 1 ? ' x2' : ''}">${linkName(r)}<i>${t.name}${mult > 1 ? ' ×' + mult : ''}</i></span>`);
       row.scrollLeft = row.scrollWidth;
       scoreEl.textContent = `${total()} pts`;
       scoreEl.classList.remove('bump'); void scoreEl.offsetWidth; scoreEl.classList.add('bump');
@@ -687,7 +699,7 @@
       next.onclick = () => ctx.done({
         score,
         emoji: links.map(l => l.tier.emoji).join('') || '⬛',
-        recap: `<div class="chain-row recap">${[`<span class="clink start">${markTargets(data.start)}</span>`, ...links.map(l => `<span class="clink t-${l.tier.key}${l.mult > 1 ? ' x2' : ''}">${markTargets(l.name)}<i>${l.tier.name}${l.mult > 1 ? ' ×' + l.mult : ''}</i></span>`)].join('')}</div>
+        recap: `<div class="chain-row recap">${[`<span class="clink start">${markTargets(data.start)}</span>`, ...links.map(l => `<span class="clink t-${l.tier.key}${l.mult > 1 ? ' x2' : ''}">${l.html}<i>${l.tier.name}${l.mult > 1 ? ' ×' + l.mult : ''}</i></span>`)].join('')}</div>
           <p class="center muted small">Common ${TIERS[0].pts} · Scarce ${TIERS[1].pts} · Rare ${TIERS[2].pts} · Priceless ${TIERS[3].pts}${targets.length ? ` · bonus letters ${targets.join(' ')}: one ×1.5, two ×2, all three ×3` : ''}${penalty ? ` · Dot’s words −${penalty}` : ''}</p>`
       });
       next.focus({ preventScroll: true });
