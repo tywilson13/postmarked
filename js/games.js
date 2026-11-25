@@ -525,15 +525,6 @@
       }
       return null;
     }
-    // A made-up example for the hint: a flavour starting with L in front of one of today's everyday answers.
-    const bases = idx.entries.filter(e => e.tier.key === 'common' && !/\s/.test(e.names[0]) && e.names[0].length <= 9).map(e => e.names[0]);
-    function flavorExample(L) {
-      if (!flavorIdx || !bases.length) return null;
-      const fl = (lex.flavorHints || lex.flavors).filter(n => norm(n)[0] === L.toLowerCase() && n.length <= 14);
-      if (!fl.length) return null;
-      const h = [...`${ctx.issue}${L}${links.length}`].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 3);
-      return { count: fl.length, ex: `${fl[h % fl.length]} ${bases[(h >>> 7) % bases.length].toLowerCase()}` };
-    }
     // Every letter as written, "The" included: after "The Office" you can start with T or H too.
     const plain = s => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/[^A-Z]/g, '');
     const lettersOf = s => [...new Set(plain(s))];
@@ -551,7 +542,8 @@
     for (let s = seed; targets.length < 3 && targets.length < band.length; s = (Math.imul(s, 1103515245) + 12345) >>> 0) { const L = band[(s >>> 8) % band.length]; if (!targets.includes(L)) targets.push(L); }
     const hits = name => targets.filter(L => lettersOf(name).includes(L));
     const MULT = n => [1, 1.5, 2, 3][n];
-    const markTargets = name => targets.length ? esc(name).replace(new RegExp(`[${targets.join('')}]`, 'gi'), m => `<u>${m}</u>`) : esc(name);
+    // Wrapped in one span: inside a chain link (a flex column) loose <u> tags would each become their own line.
+    const markTargets = name => `<span class="cl-name">${targets.length ? esc(name).replace(new RegExp(`[${targets.join('')}]`, 'gi'), m => `<u>${m}</u>`) : esc(name)}</span>`;
     // What Dot knows that starts with one of these letters, not counting answers already in the chain.
     function known(set) {
       const list = idx.entries.filter(e => (set.includes(e.keys[0][0].toUpperCase()) || set.includes(plain(e.names[0])[0])) && !used.has(e.id));
@@ -591,9 +583,8 @@
       tilesEl.innerHTML = allowed.map(L => `<span class="need-tile ${targets.includes(L) ? 'bonus' : ''}">${L}</span>`).join('');
       tilesEl.classList.remove('pop-in'); void tilesEl.offsetWidth; tilesEl.classList.add('pop-in');
       const k = known(allowed);
-      const fl = [...allowed.filter(L => targets.includes(L)), ...allowed].map(flavorExample).find(Boolean);
       hintEl.innerHTML = `Dot knows ${fmtNum(k.all)} that fit${k.bonus ? `, <b>${fmtNum(k.bonus)} with a bonus letter</b>` : ''}.` +
-        (fl ? ` Flavors count too, like <i>${esc(fl.ex)}</i>.` : '');
+        (flavorIdx ? ' A flavor in front counts too.' : '');
     }
     // An answer with no letters ("1917") leaves the letters as they were.
     const setPrev = name => { if (!lettersOf(name).length) return paintNeed(); prev = name; allowed = lettersOf(name); faced.push(allowed); paintNeed(); };
