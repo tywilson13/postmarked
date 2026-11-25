@@ -5,7 +5,7 @@
 
   const CATALOGUE = [
     { id: 'chain', mark: 'CHAIN LETTER', title: 'Chain Letter', skill: 'Rarity', par: 90,
-      how: 'Five links. Each answer has to start with the last letter of the one before. Anything that fits the prompt counts, but rarer answers are worth more: Common 8, Scarce 12, Rare 16, Priceless 20. Each day has a lucky letter: end an answer with it and the next one counts double. No countdown, so choose well (a quick chain still earns Express).' },
+      how: 'Five links. Each answer starts with any letter of the one before (after Tiramisu: T, I, R, A, M, S or U). Rarer answers are worth more: Common 8, Scarce 12, Rare 16, Priceless 20. Today’s three bonus letters multiply an answer: one anywhere in it ×1.5, two ×2, all three ×3. No countdown, so choose well (a quick chain still earns Express).' },
     { id: 'places', mark: 'WHERE FROM', title: 'Where’s This From?', skill: 'Maps', par: 90,
       how: 'Three postcards from three real places. The front says what it is and roughly where, the postmark names the country, and the message gives it away. Pin the spot whenever you’re ready. Closer pins and fewer clues earn more.' },
     { id: 'cross', mark: 'CROSS POST', title: 'Cross Post', skill: 'Words',

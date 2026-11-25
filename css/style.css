@@ -643,7 +643,17 @@ h2 { font-size: 28px; }
 .clink i { font: 700 9px var(--ui); font-style: normal; letter-spacing: .12em; text-transform: uppercase; opacity: .7; }
 .clink.start { background: var(--navy); color: var(--paper); }
 .clink.t-uncommon { background: #d9ead0; } .clink.t-rare { background: #cfe0f0; } .clink.t-legendary { background: #e6d6ef; }
-.need-wrap { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 2px 18px 12px; }
+.need-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; margin: 2px 18px 12px; }
+.need-tiles { display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; }
+.need-tile {
+  min-width: 32px; height: 36px; padding: 0 4px; display: grid; place-items: center; font: 21px var(--display); color: var(--paper);
+  background: radial-gradient(circle at 35% 30%, #da4a50, #a11f25 60%, #7d161b); border-radius: 47% 53% 50% 50% / 52% 46% 54% 48%;
+  box-shadow: inset 0 -2px 4px rgba(0,0,0,.35), 0 1px 3px rgba(0,0,0,.35);
+}
+.need-tile.bonus { background: radial-gradient(circle at 35% 30%, #f3cf63, #d9a321 60%, #a87a10); color: var(--ink); box-shadow: inset 0 -2px 4px rgba(0,0,0,.25), 0 0 0 3px rgba(217,163,33,.4), 0 1px 3px rgba(0,0,0,.35); }
+.clink u { text-decoration: none; background: linear-gradient(transparent 58%, rgba(217,163,33,.55) 58%); }
+.ideas u { text-decoration: none; background: linear-gradient(transparent 58%, rgba(217,163,33,.55) 58%); }
+.clink.pass-word { opacity: .75; }
 .need-label { font: 800 11px var(--ui); letter-spacing: .14em; text-transform: uppercase; color: var(--navy); }
 .need-letter {
   width: 54px; height: 60px; display: grid; place-items: center; font: 34px var(--display); color: var(--paper);

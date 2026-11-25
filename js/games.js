@@ -451,12 +451,11 @@
   }
 
   // ───────────────── 3. CHAIN LETTER ─────────────────
-  // Name things in a category; each must start with the last letter of the one before.
+  // Name things in a category; each must start with any letter of the one before.
   // Five links, no countdown: pick well rather than fast. Anyone can name a cat (8); an axolotl is worth 20.
   // A known thing with a real descriptor in front counts too: "russet potato", "Arctic fox", "head chef".
-  // Lucky letter: each day one letter pays double. You can't name it directly; you have to land on it by
-  // ending an answer with it, so the planning is choosing what to end on. Dot also says how many answers
-  // she knows for the letter you're on, and how many of those are Priceless.
+  // Bonus letters: three a day. Each one anywhere in an answer multiplies its rarity (×1.5, ×2, ×3), so the
+  // choice is between an easy answer and one that packs in a K and a P. Dot says how many answers fit.
   const COLORS = 'red green yellow white black purple brown golden orange pink blue grey gray silver';
   const DESCRIPTORS = {
     foods: COLORS + ' baked fried roasted roast grilled steamed boiled mashed scrambled poached smoked pickled stuffed dried fresh raw frozen toasted candied glazed braised sauteed deepfried stirfried panfried barbecue barbecued bbq blackened creamed caramelized whipped russet yukon heirloom wild baby sweet sour spicy hot iced whole homemade crispy salted honey garlic',
@@ -535,34 +534,39 @@
       const h = [...`${ctx.issue}${L}${links.length}`].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 3);
       return { count: fl.length, ex: `${fl[h % fl.length]} ${bases[(h >>> 7) % bases.length].toLowerCase()}` };
     }
-    const lastLetter = s => norm(s).replace(/[^a-z]/g, '').slice(-1).toUpperCase();
+    // Every letter as written, "The" included: after "The Office" you can start with T or H too.
+    const plain = s => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/[^A-Z]/g, '');
+    const lettersOf = s => [...new Set(plain(s))];
     const noun = data.noun || (data.category === 'countries' ? 'country' : 'animal');
     const nouns = data.plural ? data.plural.toLowerCase() : noun + 's';
-    // Today's lucky letter: one that plenty of answers start with AND end with, so landing on it is a plan,
-    // not a fluke. Never the first letter you're given. Same for everyone on the same day.
-    const startsBy = {}, endsBy = {};
-    idx.entries.forEach(e => { const k = e.keys[0].replace(/[^a-z]/g, ''); if (!k) return; startsBy[k[0]] = (startsBy[k[0]] || 0) + 1; endsBy[k.slice(-1)] = (endsBy[k.slice(-1)] || 0) + 1; });
-    const firstNeed = lastLetter(data.start).toLowerCase();
-    const luckyPool = 'abcdefghijklmnopqrstuvwxyz'.split('').filter(c => c !== firstNeed && (startsBy[c] || 0) >= 6 && (endsBy[c] || 0) >= 3);
+    // Today's bonus letters: three middling letters for this prompt (not the E/A/R everything has, not the
+    // Q/X nothing has). Each one anywhere in an answer multiplies its rarity: one ×1.5, two ×2, all three ×3.
+    // Same for everyone on the same day.
     const seed = [...`${ctx.issue}:${data.category}`].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
-    const lucky = luckyPool.length ? luckyPool[seed % luckyPool.length].toUpperCase() : null;
-    // What Dot knows for a letter, not counting answers already in the chain.
-    function known(L) {
-      const l = L.toLowerCase(), list = idx.entries.filter(e => e.keys[0][0] === l && !used.has(e.id));
-      return { all: list.length, top: list.filter(e => e.tier.key === 'legendary').length };
+    const has = {};
+    idx.entries.forEach(e => lettersOf(e.names[0]).forEach(L => has[L] = (has[L] || 0) + 1));
+    const ranked = Object.keys(has).filter(L => !'JQXZ'.includes(L) && has[L] / idx.entries.length >= 0.05).sort((a, b) => has[b] - has[a]);
+    const band = ranked.slice(14, 22).length >= 3 ? ranked.slice(14, 22) : ranked.slice(-6);
+    const targets = [];
+    for (let s = seed; targets.length < 3 && targets.length < band.length; s = (Math.imul(s, 1103515245) + 12345) >>> 0) { const L = band[(s >>> 8) % band.length]; if (!targets.includes(L)) targets.push(L); }
+    const hits = name => targets.filter(L => lettersOf(name).includes(L));
+    const MULT = n => [1, 1.5, 2, 3][n];
+    const markTargets = name => targets.length ? esc(name).replace(new RegExp(`[${targets.join('')}]`, 'gi'), m => `<u>${m}</u>`) : esc(name);
+    // What Dot knows that starts with one of these letters, not counting answers already in the chain.
+    function known(set) {
+      const list = idx.entries.filter(e => (set.includes(e.keys[0][0].toUpperCase()) || set.includes(plain(e.names[0])[0])) && !used.has(e.id));
+      return { all: list.length, bonus: list.filter(e => hits(e.names[0]).length).length };
     }
     const aNoun = (/^[aeiou]/.test(noun) ? 'an ' : 'a ') + noun;
-    let need = lastLetter(data.start), over = false, penalty = 0;
-    const used = new Set(), links = [], needed = [need];
+    let prev = data.start, allowed = lettersOf(prev), over = false, penalty = 0;
+    const used = new Set(), links = [], faced = [allowed];
 
     stage.innerHTML = `
       <article class="telegram chain-card enter">
         <header class="tg-head"><span class="tg-brand">Chain letter</span><span class="tg-no chain-score">0 pts</span></header>
-        <p class="tg-body small-body"><span class="strip">${lucky
-          ? `LUCKY LETTER <b class="lucky-chip">${lucky}</b> <span class="stop">STOP</span> LAND ON IT FOR DOUBLE <span class="stop">STOP</span>`
-          : `EACH ${noun.toUpperCase()} STARTS WITH THE LAST LETTER OF THE ONE BEFORE <span class="stop">STOP</span> RARER IS WORTH MORE <span class="stop">STOP</span>`}</span></p>
-        <div class="chain-row"><span class="clink start">${esc(data.start)}</span></div>
-        <div class="need-wrap" data-fit-top><span class="need-label">Next ${noun} starts with</span><span class="need-letter">${need}</span></div>
+        <p class="tg-body small-body"><span class="strip">BONUS LETTERS ${targets.map(L => `<b class="lucky-chip">${L}</b>`).join(' ')} <span class="stop">STOP</span> EACH ONE IN AN ANSWER MULTIPLIES IT <span class="stop">STOP</span></span></p>
+        <div class="chain-row"><span class="clink start">${markTargets(data.start)}</span></div>
+        <div class="need-wrap" data-fit-top><span class="need-label">Next ${noun} starts with any letter of</span><span class="need-tiles"></span></div>
         <p class="need-hint"></p>
         <div class="chain-slots" aria-label="Links used">${'<i></i>'.repeat(LINKS)}</div>
         <form class="answer-row" autocomplete="off">
@@ -570,13 +574,13 @@
           <button class="btn primary" type="submit">Add</button>
         </form>
         <p class="feedback" role="status"></p>
-        <div class="center"><button class="btn link pass" type="button">Stuck? New letter (−${PASS_COST} pts)</button></div>
+        <div class="center"><button class="btn link pass" type="button">Stuck? Dot picks a new word (−${PASS_COST} pts)</button></div>
       </article>
       <div class="reveal"></div>`;
     const input = stage.querySelector('.text-input');
     const fb = stage.querySelector('.feedback');
     const row = stage.querySelector('.chain-row');
-    const needEl = stage.querySelector('.need-letter');
+    const tilesEl = stage.querySelector('.need-tiles');
     const scoreEl = stage.querySelector('.chain-score');
     const slots = [...stage.querySelectorAll('.chain-slots i')];
     setTimeout(() => input.focus(), 60);
@@ -584,15 +588,15 @@
     const hintEl = stage.querySelector('.need-hint');
     const total = () => Math.max(0, Math.min(100, links.reduce((a, l) => a + l.pts, 0) - penalty));
     function paintNeed() {
-      const isLucky = need === lucky;
-      needEl.classList.toggle('lucky', isLucky);
-      needEl.dataset.x2 = isLucky ? '×2' : '';
-      const k = known(need), fl = flavorExample(need);
-      hintEl.innerHTML = (isLucky ? '<b class="lucky-word">Lucky letter! This one counts double.</b> ' : '') +
-        (k.all ? `Dot knows ${fmtNum(k.all)} ${k.all === 1 ? noun : nouns} with ${need}${k.top ? `, <b>${k.top} Priceless</b>` : ', none Priceless'}.` : fl ? '' : `Dot can’t think of any with ${need}. Maybe a new letter?`) +
+      tilesEl.innerHTML = allowed.map(L => `<span class="need-tile ${targets.includes(L) ? 'bonus' : ''}">${L}</span>`).join('');
+      tilesEl.classList.remove('pop-in'); void tilesEl.offsetWidth; tilesEl.classList.add('pop-in');
+      const k = known(allowed);
+      const fl = [...allowed.filter(L => targets.includes(L)), ...allowed].map(flavorExample).find(Boolean);
+      hintEl.innerHTML = `Dot knows ${fmtNum(k.all)} that fit${k.bonus ? `, <b>${fmtNum(k.bonus)} with a bonus letter</b>` : ''}.` +
         (fl ? ` Flavors count too, like <i>${esc(fl.ex)}</i>.` : '');
     }
-    const setNeed = L => { need = L; needed.push(L); needEl.textContent = L; needEl.classList.remove('pop-in'); void needEl.offsetWidth; needEl.classList.add('pop-in'); paintNeed(); };
+    // An answer with no letters ("1917") leaves the letters as they were.
+    const setPrev = name => { if (!lettersOf(name).length) return paintNeed(); prev = name; allowed = lettersOf(name); faced.push(allowed); paintNeed(); };
     const say = (msg, cls) => { fb.className = 'feedback ' + (cls || ''); fb.textContent = msg; };
 
     stage.querySelector('form').onsubmit = e => {
@@ -605,8 +609,10 @@
       if (r.unknown) r = compound(raw) || r;
       if (r.nope) { say(r.nope, 'bad'); H.say('Hmm, not quite.', 'oops'); shake(input); return input.select(); }
       const key = r.unknown ? norm(raw) : r.key;
-      const first = key[0].toUpperCase();
-      if (first !== need) { say(`That starts with ${first}. You need ${need}.`, 'bad'); H.say(`Needs to start with ${need}!`, 'oops'); shake(input); return input.select(); }
+      // "The Office" may start with T (as typed) or O (as filed).
+      const firsts = [...new Set([plain(raw)[0], key[0].toUpperCase(), r.name && plain(r.name)[0]].filter(Boolean))];
+      const first = firsts[0];
+      if (!firsts.some(L => allowed.includes(L))) { say(`That starts with ${first}, and there’s no ${first} in ${prev}.`, 'bad'); H.say(`Start with a letter from ${esc(prev)}!`, 'oops'); shake(input); return input.select(); }
       if (used.has(r.unknown ? key : r.entry.id)) { say('Already in your chain.', 'bad'); H.say('You’ve used that one.', 'oops'); shake(input); return input.select(); }
       if (r.unknown) {
         say(`Dot doesn't know “${titled(raw)}”. Try another ${noun}.`, 'bad');
@@ -618,37 +624,39 @@
     };
     function accept(r) {
       used.add(r.entry.id);
-      const t = r.entry.tier, x2 = need === lucky, pts = t.pts * (x2 ? 2 : 1);
-      links.push({ name: r.name, tier: t, pts, x2 });
-      sfx(x2 || t.key === 'rare' || t.key === 'legendary' ? 'rare' : 'stamp');
-      slots[links.length - 1].className = 't-' + t.key + (x2 ? ' x2' : '');
-      row.insertAdjacentHTML('beforeend', `<span class="clink t-${t.key}${x2 ? ' x2' : ''}">${esc(r.name)}<i>${t.name}${x2 ? ' ×2' : ''}</i></span>`);
+      const t = r.entry.tier, bonus = hits(r.name), mult = MULT(bonus.length), pts = t.pts * mult;
+      links.push({ name: r.name, tier: t, pts, mult });
+      sfx(mult > 1 || t.key === 'rare' || t.key === 'legendary' ? 'rare' : 'stamp');
+      slots[links.length - 1].className = 't-' + t.key + (mult > 1 ? ' x2' : '');
+      row.insertAdjacentHTML('beforeend', `<span class="clink t-${t.key}${mult > 1 ? ' x2' : ''}">${markTargets(r.name)}<i>${t.name}${mult > 1 ? ' ×' + mult : ''}</i></span>`);
       row.scrollLeft = row.scrollWidth;
       scoreEl.textContent = `${total()} pts`;
       scoreEl.classList.remove('bump'); void scoreEl.offsetWidth; scoreEl.classList.add('bump');
       // When Dot fixed the spelling, say what she read, so a wrong guess on her part is visible.
       const read = r.fuzzy && norm(r.name) !== norm(input.value) ? ` (Dot read “${r.name}”)` : '';
-      say((x2 ? `Lucky ${need}! ${t.name} ×2 = +${pts}` : `${t.name}! +${t.pts}`) + read, 'good');
-      if (x2) H.say(pick(['My lucky letter! Double postage!', 'Tap tap tap! Lucky letter, double points!']), 'happy');
+      say((mult > 1 ? `${t.name} ×${mult} (${bonus.join(', ')}) = +${pts}` : `${t.name}! +${t.pts}`) + read, 'good');
+      if (mult >= 3) H.say(pick(['All three bonus letters! Tap tap tap tap!', 'Every bonus letter in one go! ×3!']), 'happy');
+      else if (mult === 2) H.say(pick(['Two bonus letters! Double postage!', `Ooh, ${bonus.join(' and ')}! ×2!`]), 'happy');
       else if (t.key === 'legendary') H.say(pick([`${esc(r.name)}?! Priceless!`, 'Ooh, a priceless one! Tap tap tap!']), 'happy');
+      else if (mult > 1) H.say(pick([`A bonus ${bonus[0]}! Half again!`, 'Bonus letter, ×1.5!']), 'happy');
       else if (t.key === 'rare') H.say(pick([`A rare one! Lovely.`, `${esc(r.name)}! Not many think of that.`]), 'happy');
       else if (t.key === 'uncommon') H.say(pick(['Ooh, scarce!', 'Nice pick.']), 'happy');
       else H.say(pick(['Got it.', 'Tap tap!', 'Next!', 'Keep going!']));
       input.value = '';
       if (links.length >= LINKS) return end();
-      const nextL = lastLetter(r.key);
-      setNeed(nextL);
-      if (nextL === lucky && links.length < LINKS) setTimeout(() => H.say(`You landed on ${lucky}! Make it a good one.`, 'happy'), 900);
+      setPrev(r.name);
     }
     stage.querySelector('.pass').onclick = () => {
       if (over) return;
+      // A fresh everyday answer to chain from (it isn't a link, and it isn't used up).
+      const pool = idx.entries.filter(e => e.tier.key === 'common' && !used.has(e.id) && e.names[0] !== prev && lettersOf(e.names[0]).length >= 5);
+      const e = pool[Math.floor(Math.random() * pool.length)];
+      if (!e) return;
       penalty += PASS_COST;
       scoreEl.textContent = `${total()} pts`;
-      // A fresh letter with plenty of answers. Never the lucky one: you have to earn that by landing on it.
-      const pool = 'ABCDEGHKLMPRST'.split('').filter(c => c !== need && c !== lucky && known(c).all >= 15);
-      if (!pool.length) pool.push(...'BCMPST'.split('').filter(c => c !== need && c !== lucky));
-      setNeed(pool[Math.floor(Math.random() * pool.length)]);
-      say(`New letter: ${need}. (−${PASS_COST} pts)`);
+      setPrev(e.names[0]);
+      row.insertAdjacentHTML('beforeend', `<span class="clink start pass-word">${markTargets(e.names[0])}<i>Dot’s word</i></span>`);
+      say(`Dot picked ${e.names[0]}. (−${PASS_COST} pts)`);
       sfx('paper');
       input.focus();
     };
@@ -664,26 +672,32 @@
       stage.querySelector('.chain-card').classList.add('done');   // hide the next-letter prompt and the input
       stage.querySelectorAll('.chain-card button').forEach(b => b.disabled = true);
       sfx('paper');
-      // Show a few rare finds for letters the player actually faced.
-      const ideas = [...new Set(needed)].slice(-4).map(L => {
-        const fits = t => idx.entries.find(e => e.tier.key === t && e.keys[0][0] === L.toLowerCase() && !used.has(e.id));
-        const pick = fits('rare') || fits('legendary');   // Rare first: better known, so a surer suggestion
-        return pick ? `<b>${L}</b> ${esc(pick.display)} <span class="muted">(${pick.tier.name})</span>` : '';
-      }).filter(Boolean);
+      // A few big ones the player could have used: an answer that fit at some point, with the most bonus letters.
+      const ideas = [];
+      faced.slice(-4).reverse().forEach(set => {
+        let best = null, bestPts = 0;
+        idx.entries.forEach(e => {
+          if (used.has(e.id) || ideas.some(i => i === e || sound(i.keys[0]) === sound(e.keys[0])) || e.tier.key === 'common' || !set.includes(e.keys[0][0].toUpperCase())) return;
+          const p = e.tier.pts * MULT(hits(e.names[0]).length) - (e.tier.key === 'legendary' ? 1 : 0);   // a better-known one wins a tie
+          if (p > bestPts) { best = e; bestPts = p; }
+        });
+        if (best && ideas.length < 3) ideas.push(best);
+      });
+      const ideaHTML = ideas.map(e => { const m = MULT(hits(e.names[0]).length); return `<b>${e.keys[0][0].toUpperCase()}</b> ${markTargets(e.display)} <span class="muted">(${e.tier.name}${m > 1 ? ' ×' + m : ''} = ${e.tier.pts * m})</span>`; });
       const score = total();
       H.say(score >= 80 ? 'Five links, and what a chain!' : score >= 56 ? 'Five links. Nicely picked!' : 'Five links, all delivered.', score >= 56 ? 'happy' : '');
       stage.querySelector('.reveal').innerHTML = `
         <section class="paper reply enter">
           <div class="reply-head"><div class="reply-answer">${links.map(l => l.tier.emoji).join('')}</div><span class="ink-stamp big slam ink-ok">+${score}</span></div>
-          ${ideas.length ? `<h4 class="small-caps">Rare ones you could have used</h4><p class="ideas">${ideas.join('<br>')}</p>` : ''}
+          ${ideaHTML.length ? `<h4 class="small-caps">Big ones you could have used</h4><p class="ideas">${ideaHTML.join('<br>')}</p>` : ''}
         </section>
         <div class="dock"><button class="btn navy big">Done</button></div>`;
       const next = stage.querySelector('.reveal .btn');
       next.onclick = () => ctx.done({
         score,
         emoji: links.map(l => l.tier.emoji).join('') || '⬛',
-        recap: `<div class="chain-row recap">${[`<span class="clink start">${esc(data.start)}</span>`, ...links.map(l => `<span class="clink t-${l.tier.key}${l.x2 ? ' x2' : ''}">${esc(l.name)}<i>${l.tier.name}${l.x2 ? ' ×2' : ''}</i></span>`)].join('')}</div>
-          <p class="center muted small">Common ${TIERS[0].pts} · Scarce ${TIERS[1].pts} · Rare ${TIERS[2].pts} · Priceless ${TIERS[3].pts}${lucky ? ` · lucky ${lucky} ×2` : ''}${penalty ? ` · new letters −${penalty}` : ''}</p>`
+        recap: `<div class="chain-row recap">${[`<span class="clink start">${markTargets(data.start)}</span>`, ...links.map(l => `<span class="clink t-${l.tier.key}${l.mult > 1 ? ' x2' : ''}">${markTargets(l.name)}<i>${l.tier.name}${l.mult > 1 ? ' ×' + l.mult : ''}</i></span>`)].join('')}</div>
+          <p class="center muted small">Common ${TIERS[0].pts} · Scarce ${TIERS[1].pts} · Rare ${TIERS[2].pts} · Priceless ${TIERS[3].pts}${targets.length ? ` · bonus letters ${targets.join(' ')}: one ×1.5, two ×2, all three ×3` : ''}${penalty ? ` · Dot’s words −${penalty}` : ''}</p>`
       });
       next.focus({ preventScroll: true });
       stage.querySelector('.reveal').scrollIntoView({ behavior: 'smooth', block: 'start' });
