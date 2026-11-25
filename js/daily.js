@@ -76,6 +76,8 @@
     }
     return order;
   }
+  // Prompts taken out of the rotation (their lists stay, unused). Athletes: too many current stars Dot didn't know.
+  const RETIRED_CHAIN = new Set(['athletes']);
   const chainCats = () => [...new Set([...Object.keys(CHAIN).filter(k => window.PM_LEXICON && window.PM_LEXICON[k]), ...Object.keys(window.PM_CHAIN_INDEX || {})])];
 
   // ───────── The Postal Scale: move the window so the answer isn't near the middle ─────────
@@ -210,8 +212,10 @@
     const day = { issue, route: ['chain', game, 'scale', 'sender'], game };
 
     // Chain Letter every day, walking the categories in a fixed order so none comes twice in a row.
-    const cats = chainCats();
-    const category = chainOrder(cats)[k % cats.length];
+    // A retired prompt's turn goes to the prompt half a cycle along, so the rest of the order stays put.
+    const cats = chainCats(), order = chainOrder(cats);
+    let category = order[k % cats.length];
+    for (let step = Math.floor(cats.length / 2); RETIRED_CHAIN.has(category); step++) category = order[(k + step) % cats.length];
     const info = chainInfo(category), lex = (window.PM_CHAIN_INDEX || {})[category] ? null : window.PM_LEXICON[category];
     const starts = info.starts || lex.starts || lex.tiers.common.map(s => s.split('|')[0]);
     day.chain = { category, noun: info.noun, plural: info.plural, kind: info.kind || category, start: nth(starts, Math.floor(k / cats.length), 'start:' + category) };
