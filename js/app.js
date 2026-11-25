@@ -48,7 +48,10 @@
     return Math.max(1, Math.round((d - EPOCH) / 86400000) + 1);
   }
   const params = new URLSearchParams(location.search);
-  const issue = +params.get('day') || todayNumber();
+  const TODAY = todayNumber();
+  // ?day=N plays a back issue. Days that haven't come out yet stay sealed (except in ?dev playtests).
+  const issue = Math.max(1, Math.min(+params.get('day') || TODAY, params.has('dev') ? Infinity : TODAY));
+  const isBack = issue < TODAY;
   const day = PMDaily.build(issue);
   PMGames.loadChain(day.chain.category);   // fetch today's Chain Letter answers while the home screen shows
   const LEGS = day.route.map(legOfId);
@@ -119,6 +122,7 @@
     const stats = getStats();
     const waiting = rivalsFor(issue);
     stage.innerHTML = `
+      ${isBack ? `<div class="telegram back-banner enter"><span class="tg-animal">🗂️</span><p>A back issue from <b>${esc(dateLabel)}</b>. It counts toward your routes and best grade, not your streak.</p><a class="btn small navy" href="./">Today</a></div>` : ''}
       ${waiting.length ? `<div class="telegram rival-banner enter"><span class="tg-animal">💌</span><p><b>${waiting.map(r => esc(r.name)).join(' and ')}</b> already delivered today's mail${waiting.length === 1 ? ` (${waiting[0].total} postage)` : ''}. Your turn. You'll see how you compare at the end.</p></div>` : ''}
       <section class="envelope enter">
         <div class="env-top">
@@ -141,17 +145,19 @@
 
       <section class="paper manifest enter">
         <div class="manifest-head">
-          <span class="small-caps">Today's deliveries</span>
+          <span class="small-caps">${isBack ? 'Deliveries' : "Today's deliveries"}</span>
           <span class="hand theme">${esc(day.theme)}</span>
         </div>
         <ol class="route-list">
           ${LEGS.map(l => `<li><span class="rl-host">${PMArt.hostFor(l.id).svg}</span><span class="t">${l.title}</span><span class="dots"></span><span class="tag">${l.skill}</span></li>`).join('')}
         </ol>
-        <p class="manifest-note">Somebody sent you mail today. Each delivery brings a clue to <b>who it was</b>. The meter only runs while you play, and finishing fast earns an <b>Express</b> bonus.</p>
-        <button class="seal-btn" id="go"><span class="seal">P</span><span>Open today's mail</span></button>
+        <button class="seal-btn" id="go"><span class="seal">P</span><span>${isBack ? 'Open this mail' : "Open today's mail"}</span></button>
+        <p class="manifest-note">Somebody sent you mail ${isBack ? 'that day' : 'today'}. Each delivery brings a clue to <b>who it was</b>. The meter only runs while you play, and finishing fast earns an <b>Express</b> bonus.</p>
       </section>
-      ${stats.played ? scoreboardHTML() + passportHTML(stats) + '<button class="btn big" id="albumBtn">Open your stamp album</button>' : ''}`;
+      ${stats.played ? scoreboardHTML() + passportHTML(stats) + '<button class="btn big" id="albumBtn">Open your stamp album</button>' : ''}
+      ${backBtnHTML()}`;
     if (stats.played) $('#albumBtn').onclick = () => album(home);
+    wireBack(home);
     $('#go').onclick = () => { sfx('paper'); Clock.reset(); results = []; senderState = freshSender(); PMMap.loadHiRes(); openLeg(0); };
     $('#toName').onclick = () => {
       const n = prompt('Who is this mail addressed to?', store.get('name', ''));
@@ -352,7 +358,7 @@
       <section class="paper manifest receipt enter">
         <div class="receipt-head">
           <span class="small-caps">Delivery receipt · No. ${rec.issue}</span>
-          <h1>${revisit ? "Today's mail is delivered" : 'All delivered'}</h1>
+          <h1>${revisit ? (rec.issue < TODAY ? `No. ${rec.issue} is delivered` : "Today's mail is delivered") : 'All delivered'}</h1>
           <div class="grade-wrap"><div class="grade grade-${gradeFor(rec.total)[0]}">${gradeFor(rec.total)}</div><div class="hand rank">${gradeName(gradeFor(rec.total))}</div></div>
         </div>
         <div class="totals">
@@ -372,7 +378,11 @@
       ${scoreboardHTML()}
       ${passportHTML(getStats())}
       <button class="btn big" id="albumBtn">Open your stamp album</button>
-      <p class="sign-off hand">Pip will be back tomorrow morning with more mail.</p>`;
+      ${backBtnHTML()}
+      ${rec.issue < TODAY
+        ? `<div class="back-again"><a class="btn link" href="?day=${rec.issue}&replay">Play it again (won't change your score)</a><a class="btn navy big" href="./">Go to today's mail</a></div>`
+        : `<p class="sign-off hand">Pip will be back tomorrow morning with more mail.</p>`}`;
+    wireBack(() => summary(rec, true));
     $('#share').onclick = () => {
       if (!store.get('name', '')) {
         const n = prompt('Sign your postcard. What name should your results show?', '');
@@ -383,6 +393,43 @@
       share(t);
     };
     $('#albumBtn').onclick = () => album(() => summary(rec, true));
+  }
+
+  // ───────── back issues: every past day, newest first ─────────
+  const backBtnHTML = () => TODAY > 1 ? '<button class="btn big" id="backBtn">Back issues</button>' : '';
+  const wireBack = back => { const b = $('#backBtn'); if (b) b.onclick = () => { sfx('paper'); archive(back); }; };
+  const themeCache = {};
+  const themeOf = n => themeCache[n] = themeCache[n] || (() => { try { return PMDaily.build(n).theme; } catch { return ''; } })();
+  function archive(back) {
+    progress(-1, 0);
+    const got = store.get('album', {});
+    const days = Array.from({ length: TODAY - 1 }, (_, k) => TODAY - 1 - k);
+    const playedCount = days.filter(n => store.get('day:' + n)).length;
+    const row = n => {
+      const rec = store.get('day:' + n), stamp = got[n];
+      const date = new Date(EPOCH.getTime() + (n - 1) * 86400000);
+      const when = date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+      const g = rec ? gradeFor(rec.total) : null;
+      return `<a class="ar-row${rec ? ' done' : ''}" href="?day=${n}">
+        <span class="ar-no"><small>No.</small>${n}</span>
+        <span class="ar-mid"><b>${esc(when)}</b><span class="ar-theme">${esc(themeOf(n))}</span></span>
+        <span class="ar-end">${rec
+          ? `${stamp ? `<span class="ar-stamp" title="${esc(stamp.name)}">${stamp.emoji}</span>` : ''}<span class="ar-grade grade-${g[0]}">${g}</span>`
+          : '<span class="ar-play">Play</span>'}</span>
+      </a>`;
+    };
+    stage.innerHTML = `
+      <section class="album archive enter">
+        <header class="album-head">
+          <span class="small-caps">Back issues</span>
+          <h1>${playedCount} of ${days.length} delivered</h1>
+          <p class="muted">Missed a day? Every past route is here, exactly as it was.</p>
+        </header>
+        <div class="ar-list">${days.map(row).join('')}</div>
+      </section>
+      <button class="btn big" id="archiveBack">Back</button>`;
+    $('#archiveBack').onclick = back;
+    window.scrollTo({ top: 0 });
   }
 
   // ───────── stamp album ─────────
@@ -425,6 +472,12 @@
   function getStats() { return store.get('stats', { played: 0, streak: 0, best: 0, lastIssue: 0 }); }
   function updateStats(rec) {
     const s = getStats();
+    if (rec.issue < TODAY) {   // a back issue: counts as a route and can set a best, but leaves the streak alone
+      s.played++;
+      s.best4 = Math.max(s.best4 || 0, rec.total);
+      store.set('stats', s);
+      return;
+    }
     if (s.lastIssue === rec.issue) return;
     s.played++;
     s.streak = s.lastIssue === rec.issue - 1 ? s.streak + 1 : 1;
@@ -458,6 +511,27 @@
   $('#foot').innerHTML = `<span>Postmarked · a daily mail route</span>` + (params.has('dev')
     ? `<span class="dev">Playtest: ${Array.from({ length: 12 }, (_, k) => `<a href="?day=${k + 1}&replay&dev">${k + 1}</a>`).join(' ')}</span>`
     : '');
+
+  // ───────── keep the answer box above the phone keyboard ─────────
+  // When a text box is focused, scroll so the part you need (the letter to start with, the clues) sits just under the
+  // header and the box itself, plus Dot's reply under it, clears the keyboard. Runs again as the keyboard slides up.
+  function fitFocused() {
+    const el = document.activeElement;
+    if (!el || !el.matches || !el.matches('.text-input')) return;
+    const vv = window.visualViewport, vh = vv ? vv.height : innerHeight;
+    const bar = document.querySelector('.topbar'), barH = bar ? bar.getBoundingClientRect().bottom : 0;
+    const box = el.closest('form') || el, anchor = el.closest('section, article')?.querySelector('[data-fit-top]') || box;
+    const fb = box.nextElementSibling && box.nextElementSibling.classList.contains('feedback') ? box.nextElementSibling : box;
+    const y0 = scrollY, top = anchor.getBoundingClientRect().top + y0, bottom = fb.getBoundingClientRect().bottom + y0;
+    let y = top - barH - 8;                                    // anchor right under the header…
+    if (bottom + 8 > y + vh) y = bottom + 8 - vh;               // …unless that would hide the box itself
+    if (Math.abs(y - y0) > 4) window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
+  }
+  document.addEventListener('focusin', e => {
+    if (!e.target.matches || !e.target.matches('.text-input')) return;
+    setTimeout(fitFocused, 60); setTimeout(fitFocused, 450);
+  });
+  if (window.visualViewport) visualViewport.addEventListener('resize', () => setTimeout(fitFocused, 30));
 
   // ───────── offline support (sw.js). Only over https or on localhost. ─────────
   if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {

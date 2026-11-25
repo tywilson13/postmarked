@@ -919,3 +919,91 @@ h2 { font-size: 28px; }
 @media (max-width: 520px) { .map-stamp { top: 10px; right: 10px; } .map-stamp .ink-stamp.big { font-size: 14px; padding: 4px 10px 3px; border-width: 3px; } }
 /* While typing (keyboard up), the docked button goes back in line so it can't cover the input. */
 body:has(.text-input:focus) .dock { position: static; }
+
+/* ───────── Back issues ───────── */
+.back-banner { display: flex; gap: 12px; align-items: center; padding: 12px 14px; margin-bottom: 14px; }
+.back-banner p { margin: 0; font-size: 14.5px; flex: 1; }
+.back-banner .btn { flex: none; text-decoration: none; }
+.back-again { display: grid; gap: 6px; margin: 4px 0 8px; text-align: center; }
+.back-again .btn { text-decoration: none; }
+#backBtn { margin-top: 10px; }
+.ar-list { background: var(--paper) var(--grain); border-radius: 2px; padding: 4px 12px; }
+.ar-row {
+  display: grid; grid-template-columns: 54px 1fr auto; gap: 12px; align-items: center;
+  padding: 11px 2px; color: var(--ink); text-decoration: none; border-top: 1px dashed rgba(38,34,29,.22);
+}
+.ar-row:first-child { border-top: 0; }
+.ar-row:active { background: rgba(29,53,87,.06); }
+.ar-no {
+  font: 22px/1 var(--display); color: var(--navy); text-align: center;
+  border: 2px dashed rgba(29,53,87,.35); border-radius: 3px; padding: 7px 0 6px;
+}
+.ar-no small { display: block; font: 800 9px var(--ui); letter-spacing: .14em; color: var(--ink-soft); margin-bottom: 2px; }
+.ar-row.done .ar-no { border-style: solid; border-color: var(--navy); }
+.ar-mid { display: flex; flex-direction: column; min-width: 0; }
+.ar-mid b { font: 800 14px var(--ui); }
+.ar-theme { font: 18px/1.15 var(--hand); color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ar-end { display: flex; align-items: center; gap: 8px; }
+.ar-stamp { font-size: 22px; }
+.ar-grade {
+  width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; transform: rotate(-6deg);
+  font: 19px/1 var(--display); color: var(--paper); box-shadow: inset 0 -2px 4px rgba(0,0,0,.35);
+  background: radial-gradient(circle at 35% 30%, #da4a50, #a11f25 60%, #7d161b);
+}
+.ar-play {
+  font: 800 12px var(--ui); letter-spacing: .1em; text-transform: uppercase; color: var(--paper);
+  background: var(--red); padding: 8px 12px; border-radius: 3px; box-shadow: 0 2px 0 var(--red-d);
+}
+.ar-grade.grade-S { background: radial-gradient(circle at 35% 30%, #f2cf6a, #c9961c 60%, #8f6a12); color: #3b2a05; }
+.ar-grade.grade-A { background: radial-gradient(circle at 35% 30%, #4f9a6a, #2d6a4f 60%, #1d4a36); }
+.ar-grade.grade-B { background: radial-gradient(circle at 35% 30%, #4d79a8, #1d3557 60%, #142640); }
+
+/* ───────── Phones: tighter, so the start button and answer boxes fit without scrolling ───────── */
+/* Room to scroll the answer box up above the keyboard. */
+body:has(.text-input:focus) #stage { padding-bottom: 55vh; }
+@media (max-width: 520px) {
+  .envelope { padding: 12px 14px 10px; margin: 2px 0 12px; border-width: 7px; }
+  .env-stamp { width: 74px; height: 88px; }
+  .env-stamp .pip { width: 56px; margin-top: 8px; }
+  .env-postmark { left: -66px; top: 22px; width: 128px; }
+  .env-from .hand { font-size: 15.5px; }
+  .env-to { margin: 0 0 2px 14%; }
+  .to-name { font-size: 32px; }
+  .env-addr { font-size: 17px; padding: 2px 0 1px; }
+  .par-avion { margin-top: 8px; padding: 3px 8px; font-size: 9.5px; }
+  .manifest { padding: 14px 16px 14px; }
+  .manifest-head { margin-bottom: 2px; }
+  .manifest-head .theme { font-size: 23px; }
+  .route-list { margin-bottom: 12px; }
+  .route-list li { padding: 5px 0; gap: 10px; }
+  .route-list .rl-host { width: 28px; }
+  .manifest-note { margin: 12px 0 0; font-size: 13.5px; }
+  .back-banner { padding: 8px 12px; } .back-banner p { font-size: 13.5px; }
+
+  .host-bar { margin-bottom: 6px; }
+  .tg-head { padding: 8px 14px 6px; }
+  .tg-brand { font-size: 21px; }
+  .chain-card .tg-body { margin: 8px 14px 8px; font-size: 15px; line-height: 1.6; }
+  .chain-row { padding: 2px 14px 6px; }
+  .need-wrap { margin: 0 14px 8px; }
+  .need-letter { width: 46px; height: 50px; font-size: 29px; }
+  .need-hint { margin: -2px 14px 6px; font-size: 13.5px; }
+  .chain-slots { margin-bottom: 8px; }
+  .telegram .answer-row { padding: 0 14px; }
+  .telegram .feedback { margin: 6px 14px 0; }
+  .chain-card .pass { padding: 4px 8px; }
+}
+@media (max-width: 520px) {
+  /* Envelope: "From" and "To" stacked on the left, the stamp on the right. */
+  .envelope { display: grid; grid-template-columns: 1fr auto; grid-template-areas: "from stamp" "to stamp" "avion avion"; column-gap: 8px; }
+  .env-top { display: contents; }
+  .env-from { grid-area: from; }
+  .env-stamp-wrap { grid-area: stamp; align-self: start; }
+  .env-postmark { left: -58px; top: 46px; width: 118px; }
+  .env-to { grid-area: to; margin: 6px 0 0; }
+  .par-avion { grid-area: avion; justify-self: start; }
+}
+@media (max-width: 520px) and (max-height: 720px) {
+  .par-avion { display: none; }
+  .env-from .small-caps, .env-to .small-caps { font-size: 10px; }
+}

@@ -42,14 +42,19 @@
   ];
   const norm = s => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
     .replace(/&/g, 'and').replace(/^\s*the\s+/, '').replace(/[^a-z0-9]/g, '');
-  function lev(a, b) {
-    if (Math.abs(a.length - b.length) > 2) return 9;
+  function lev(a, b, max = 2) {
+    if (Math.abs(a.length - b.length) > max) return 9;
     const dp = Array.from({ length: a.length + 1 }, (_, i) => [i]);
     for (let j = 1; j <= b.length; j++) dp[0][j] = j;
     for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++)
       dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
     return dp[a.length][b.length];
   }
+  // How a word sounds, roughly: soft/hard c, ph, doubled letters and vowel spellings all collapse, so
+  // "millefioule" and "millefeuille" both come out as "malafala". The first letter is kept as typed.
+  const sound = k => k[0] + k.slice(1)
+    .replace(/ph/g, 'f').replace(/ck/g, 'k').replace(/c(?=[eiy])/g, 's').replace(/[cq]/g, 'k').replace(/x/g, 'ks').replace(/z/g, 's')
+    .replace(/gh/g, '').replace(/[0-9]/g, '').replace(/([^aeiouy])h/g, '$1').replace(/[aeiouy]+/g, 'a').replace(/(.)\1+/g, '$1').replace(/a$/, '');
   // lex: { tiers: {common:[...], ...}, nope: {"A|B": msg} }. An entry keeps every spelling: names[k] ↔ keys[k].
   function buildIndex(lex) {
     const entries = [], nopes = [], seen = new Set(), aliases = [];
@@ -72,7 +77,7 @@
     const add = e => e.keys.forEach((key, k) => {
       if (!byKey.has(key)) byKey.set(key, { e, k });
       if (!byFirst.has(key[0])) byFirst.set(key[0], []);
-      byFirst.get(key[0]).push({ e, k, key });
+      byFirst.get(key[0]).push({ e, k, key, snd: sound(key) });
     });
     entries.forEach(add);
     return { entries, nopes, byKey, byFirst, add: e => { entries.push(e); add(e); return e; } };
@@ -84,19 +89,34 @@
     const tolOf = key => key.length >= 9 ? 2 : key.length >= 5 ? 1 : 0;
     const find = (list, test) => { for (const e of list) for (let k = 0; k < e.keys.length; k++) if (test(e.keys[k])) return { e, k }; return null; };
     const n1 = find(idx.nopes, key => variants.includes(key)); if (n1) return { nope: n1.e.msg };
-    let e1 = null;
+    let e1 = null, fuzzy = false;
     for (const x of variants) if ((e1 = idx.byKey.get(x))) break;
     if (!e1) {
-      // Closest typo match among answers with the same first letter; ties go to the more common answer.
-      let best = 9;
+      // Closest spelling among answers with the same first letter; ties go to the more common answer.
+      // Two ways to be close: a few letters off (more allowed on longer words), or spelled the way it sounds
+      // ("millefioule" for mille-feuille, "creembrulay" for crème brûlée).
+      const vs = sound(v), vl = v.replace(/s$/, '');
+      let best = 99;
       for (const c of idx.byFirst.get(v[0]) || []) {
-        const tol = tolOf(c.key);
-        if (!tol || Math.abs(c.key.length - v.length) > tol) continue;
-        const d = lev(v, c.key);
-        if (d <= tol && d < best) { best = d; e1 = c; if (d === 1) break; }
+        const len = c.key.length, tol = tolOf(c.key);
+        if (Math.abs(len - v.length) > Math.max(tol, 4)) continue;
+        let d = tol ? lev(v, c.key, tol) : 9;
+        if (d > tol) {
+          // Sounds the same: identical sound skeleton, or one sound off on a long word, and not wildly different
+          // letters. Only for longer words: short ones sound like too many other things.
+          if (len < 6 || v.length < 6 || Math.abs(len - v.length) > 2) continue;
+          const sameSound = c.snd === vs || c.snd === sound(vl);
+          const nearSound = !sameSound && len >= 8 && c.snd.length >= 6 && c.snd.slice(0, 3) === vs.slice(0, 3) && lev(vs, c.snd, 1) <= 1;
+          if (!sameSound && !nearSound) continue;
+          d = lev(v, c.key, 5);
+          if (d > Math.round(len * 0.34)) continue;
+          d += 0.5;   // a letter-for-letter near miss beats a sound-alike
+        }
+        if (d < best) { best = d; e1 = c; if (d === 1) break; }
       }
+      fuzzy = !!e1;
     }
-    if (e1) return { entry: e1.e, key: e1.e.keys[e1.k], name: e1.e.names[e1.k] };
+    if (e1) return { entry: e1.e, key: e1.e.keys[e1.k], name: e1.e.names[e1.k], fuzzy };
     const n2 = find(idx.nopes, key => { const tol = tolOf(key); return tol && lev(v, key) <= tol; }); if (n2) return { nope: n2.e.msg };
     return { unknown: true };
   }
@@ -480,15 +500,40 @@
     const common = TIERS[0];
     const descriptors = new Set((DESCRIPTORS[data.kind] || DESCRIPTORS[data.category] || '').split(' ').filter(Boolean));
     const titled = raw => raw.trim().replace(/\s+/g, ' ').replace(/^./, c => c.toUpperCase());
-    // "Russet potato": descriptors in front of something Dot knows. Counts as Common.
+    // Food days also take a flavour in front: "Espresso cake", "Elderflower lemonade", "Eggplant curry".
+    const flavorIdx = lex.flavors ? buildIndex({ tiers: { common: lex.flavors } }) : null;
+    const isFlavor = words => {
+      if (!flavorIdx || !words.length) return null;
+      const r = matchAnswer(flavorIdx, words.join(' '));
+      return r && r.entry ? r.name : null;
+    };
+    // "Russet potato", "Iced espresso latte": descriptors and/or a flavour in front of something Dot knows. Counts as Common.
     function compound(raw) {
       const words = raw.trim().split(/\s+/);
       for (let i = 1; i < words.length; i++) {
-        if (!words.slice(0, i).every(w => descriptors.has(norm(w)))) break;
+        const front = words.slice(0, i);
+        let d = 0; while (d < front.length && descriptors.has(norm(front[d]))) d++;
+        const flavor = d < front.length ? isFlavor(front.slice(d)) : null;
+        if (d < front.length && !flavor) continue;
         const base = matchAnswer(idx, words.slice(i).join(' '));
-        if (base && base.entry) { const name = titled(raw); return { entry: { id: norm(name), tier: common }, key: norm(name), name }; }
+        if (base && base.entry) {
+          // Spelled properly: "expresso cak" becomes "Espresso cake". A flavour keeps its capitals ("Earl Grey").
+          const lower = s => s.replace(/^[A-Z](?=[a-z])/, c => c.toLowerCase());
+          const name = [...front.slice(0, d).map(w => w.toLowerCase()), ...(flavor ? [flavor] : []), lower(base.name)]
+            .join(' ').replace(/^./, c => c.toUpperCase());
+          return { entry: { id: norm(name), tier: common }, key: norm(name), name, flavored: !!flavor };
+        }
       }
       return null;
+    }
+    // A made-up example for the hint: a flavour starting with L in front of one of today's everyday answers.
+    const bases = idx.entries.filter(e => e.tier.key === 'common' && !/\s/.test(e.names[0]) && e.names[0].length <= 9).map(e => e.names[0]);
+    function flavorExample(L) {
+      if (!flavorIdx || !bases.length) return null;
+      const fl = (lex.flavorHints || lex.flavors).filter(n => norm(n)[0] === L.toLowerCase() && n.length <= 14);
+      if (!fl.length) return null;
+      const h = [...`${ctx.issue}${L}${links.length}`].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 3);
+      return { count: fl.length, ex: `${fl[h % fl.length]} ${bases[(h >>> 7) % bases.length].toLowerCase()}` };
     }
     const lastLetter = s => norm(s).replace(/[^a-z]/g, '').slice(-1).toUpperCase();
     const noun = data.noun || (data.category === 'countries' ? 'country' : 'animal');
@@ -514,10 +559,10 @@
       <article class="telegram chain-card enter">
         <header class="tg-head"><span class="tg-brand">Chain letter</span><span class="tg-no chain-score">0 pts</span></header>
         <p class="tg-body small-body"><span class="strip">${lucky
-          ? `LUCKY LETTER <b class="lucky-chip">${lucky}</b> <span class="stop">STOP</span> END AN ANSWER WITH ${lucky} AND THE NEXT ONE COUNTS DOUBLE <span class="stop">STOP</span>`
+          ? `LUCKY LETTER <b class="lucky-chip">${lucky}</b> <span class="stop">STOP</span> LAND ON IT FOR DOUBLE <span class="stop">STOP</span>`
           : `EACH ${noun.toUpperCase()} STARTS WITH THE LAST LETTER OF THE ONE BEFORE <span class="stop">STOP</span> RARER IS WORTH MORE <span class="stop">STOP</span>`}</span></p>
         <div class="chain-row"><span class="clink start">${esc(data.start)}</span></div>
-        <div class="need-wrap"><span class="need-label">Next ${noun} starts with</span><span class="need-letter">${need}</span></div>
+        <div class="need-wrap" data-fit-top><span class="need-label">Next ${noun} starts with</span><span class="need-letter">${need}</span></div>
         <p class="need-hint"></p>
         <div class="chain-slots" aria-label="Links used">${'<i></i>'.repeat(LINKS)}</div>
         <form class="answer-row" autocomplete="off">
@@ -542,9 +587,10 @@
       const isLucky = need === lucky;
       needEl.classList.toggle('lucky', isLucky);
       needEl.dataset.x2 = isLucky ? '×2' : '';
-      const k = known(need);
+      const k = known(need), fl = flavorExample(need);
       hintEl.innerHTML = (isLucky ? '<b class="lucky-word">Lucky letter! This one counts double.</b> ' : '') +
-        (k.all ? `Dot knows ${fmtNum(k.all)} ${k.all === 1 ? noun : nouns} with ${need}${k.top ? `, <b>${k.top} Priceless</b>` : ', none Priceless'}.` : `Dot can’t think of any with ${need}. Maybe a new letter?`);
+        (k.all ? `Dot knows ${fmtNum(k.all)} ${k.all === 1 ? noun : nouns} with ${need}${k.top ? `, <b>${k.top} Priceless</b>` : ', none Priceless'}.` : fl ? '' : `Dot can’t think of any with ${need}. Maybe a new letter?`) +
+        (fl ? ` Flavors count too, like <i>${esc(fl.ex)}</i>.` : '');
     }
     const setNeed = L => { need = L; needed.push(L); needEl.textContent = L; needEl.classList.remove('pop-in'); void needEl.offsetWidth; needEl.classList.add('pop-in'); paintNeed(); };
     const say = (msg, cls) => { fb.className = 'feedback ' + (cls || ''); fb.textContent = msg; };
@@ -580,7 +626,9 @@
       row.scrollLeft = row.scrollWidth;
       scoreEl.textContent = `${total()} pts`;
       scoreEl.classList.remove('bump'); void scoreEl.offsetWidth; scoreEl.classList.add('bump');
-      say(x2 ? `Lucky ${need}! ${t.name} ×2 = +${pts}` : `${t.name}! +${t.pts}`, 'good');
+      // When Dot fixed the spelling, say what she read, so a wrong guess on her part is visible.
+      const read = r.fuzzy && norm(r.name) !== norm(input.value) ? ` (Dot read “${r.name}”)` : '';
+      say((x2 ? `Lucky ${need}! ${t.name} ×2 = +${pts}` : `${t.name}! +${t.pts}`) + read, 'good');
       if (x2) H.say(pick(['My lucky letter! Double postage!', 'Tap tap tap! Lucky letter, double points!']), 'happy');
       else if (t.key === 'legendary') H.say(pick([`${esc(r.name)}?! Priceless!`, 'Ooh, a priceless one! Tap tap tap!']), 'happy');
       else if (t.key === 'rare') H.say(pick([`A rare one! Lovely.`, `${esc(r.name)}! Not many think of that.`]), 'happy');
@@ -596,7 +644,9 @@
       if (over) return;
       penalty += PASS_COST;
       scoreEl.textContent = `${total()} pts`;
-      const pool = 'ABCDEGHKLMPRST'.split('').filter(c => c !== need);
+      // A fresh letter with plenty of answers. Never the lucky one: you have to earn that by landing on it.
+      const pool = 'ABCDEGHKLMPRST'.split('').filter(c => c !== need && c !== lucky && known(c).all >= 15);
+      if (!pool.length) pool.push(...'BCMPST'.split('').filter(c => c !== need && c !== lucky));
       setNeed(pool[Math.floor(Math.random() * pool.length)]);
       say(`New letter: ${need}. (−${PASS_COST} pts)`);
       sfx('paper');
@@ -941,7 +991,7 @@
           <div class="sender-stamp stamp-perf"><div class="stamp-face t-cream"><span class="sender-q">?</span></div></div>
           <div><span class="small-caps">Who sent today's mail?</span><p class="hand sender-sub">${opts.final ? 'Last chance to guess the sender.' : 'Each delivery brings a clue. Guess early for more.'}</p></div>
         </header>
-        <ol class="sender-clues">${data.clues.map((c, k) => {
+        <ol class="sender-clues" data-fit-top>${data.clues.map((c, k) => {
           if (k >= st.seen) {
             if (opts.final && k === st.seen) return `<li class="future"><button class="btn small open-clue" type="button">Open clue ${k + 1} <small>worth ${senderValue({ ...st, seen: k + 1 })}</small></button></li>`;
             return `<li class="future">${k < delivered ? `Arrives after delivery ${k + 1}` : opts.final ? 'Sealed' : 'Yours to open in the last round'}</li>`;

@@ -11,7 +11,7 @@ Every game has a floor (anyone scores something) and a ceiling (room to shine). 
 
 | Game | Host | Skill | What you do | Content |
 |---|---|---|---|---|
-| Chain Letter | Dot the woodpecker | Rarity | Five answers to a prompt, chained by last letter. Common 8 · Scarce 12 · Rare 16 · Priceless 20. A daily **lucky letter** doubles the answer after you land on it (end an answer with it). Dot shows how many answers she knows for the current letter | 57 prompts: 52 in `js/data/chain/` (one file each, loaded on its day) plus animals, countries, foods, plants, jobs in `lexicon*.js` |
+| Chain Letter | Dot the woodpecker | Rarity | Five answers to a prompt, chained by last letter. Common 8 · Scarce 12 · Rare 16 · Priceless 20. A daily **lucky letter** doubles the answer after you land on it (end an answer with it). Dot shows how many answers she knows for the current letter. Close spellings count ("millefioule" → Mille-feuille; Dot says what she read). On food days a flavor in front of a known answer counts as Common ("Espresso cake", "Elderflower lemonade"). "New letter" never hands out the lucky letter | 57 prompts: 52 in `js/data/chain/` (one file each, loaded on its day) plus animals, countries, foods, plants, jobs in `lexicon*.js` |
 | Where's This From? | Gus the goose | Maps | Three postcards from real places. The front says what it is and roughly where, the postmark names the country, the message gives it away. Pin the spot: closer and earlier scores more. On reveal Gus flies from your pin to the real spot, the miles count up, and a stamp lands (Bullseye within 50 mi) | `bank/places-*.js` (240 places, 80 per level) |
 | Cross Post | Hazel the owl | Words | A themed mini crossword of 5 words with a letter bank and no clues to start. Clues and letters for sale | `bank/themes-*.js` (90 themes × 12 words; the grid is built fresh each time) |
 | Missorted | Mabel the pigeon | Puzzle | Three sacks packed wrong. Swap stamps until each holds a group | `bank/missorted.js` |
@@ -51,7 +51,9 @@ cd postmarked
 python -m http.server 8137
 ```
 
-Open http://localhost:8137. For playtesting, `?day=3&replay` jumps to a day and lets you replay it. Add `?dev` to show the playtest links in the footer (they're hidden from players).
+Open http://localhost:8137. For playtesting, `?day=3&replay` jumps to a day and lets you replay it. Add `?dev` to show the playtest links in the footer (they're hidden from players) and to open days that haven't come out yet; without it, a future `?day` shows today.
+
+**Back issues:** the "Back issues" button (home and results screens) lists every past day. A past day plays and saves like any other and counts toward routes and best grade, but never touches the streak.
 
 ## Put it online (free)
 
@@ -80,6 +82,9 @@ Open the link and use **Add to Home Screen** (Safari's Share menu, or Chrome's �
   - **Descriptors:** a known answer with a descriptor in front counts as Common ("russet potato", "Arctic fox", "head chef"). The lists are `DESCRIPTORS` in `js/games.js`.
   - **Unknown answers are rejected.** If Dot doesn't recognize an answer, the player has to try another. A real answer that keeps getting turned away belongs in the lists.
 - **Chain Letter prompts** (`tools/chain-src/<id>.json`): `{ id, noun, plural, sources, starts, tiers: { common, uncommon, rare, legendary }, nope }`. Same entry format as the lexicon. After editing any of them, run `node tools/build-chain.js`, which cleans the lists (duplicates, notes in brackets, opening words that aren't Common) and writes `js/data/chain/`. Add a new prompt by dropping a new JSON file in that folder.
+  - `node tools/chain-gaps.js <id>` shows where a list runs thin: letters many answers end in but few start with (that's where chains get stuck). `node tools/chain-gaps.js <id> E` lists every answer starting with E.
+  - To add a batch, put new answers in `tools/chain-src/add/<id>.json` (`{ "tiers": { ... } }`), check with `node tools/chain-gaps.js <id> --check`, then `node tools/merge-chain-adds.js` folds them in.
+  - Food prompts (desserts, baked goods, candy, drinks, snacks, dishes, sauces, pasta) also get a flavor list in the build (fruit, spice, vegetable and cheese names plus `SWEET`/`SAVORY` in `build-chain.js`). Lakes and mountains answer to the bare name too ("Hood" for Mount Hood).
   - Most lists were drafted from memory by AI agents, then given a second cleanup pass. Common answers are solid; a few Rare/Priceless entries may still be wrong. If you spot one, delete it from the JSON and rebuild.
   - Built from real data: `cities` (the hand list plus GeoNames towns: `node tools/make-cities.js cities1000.txt`), `girls-names` / `boys-names` (US Social Security data: `node tools/make-names.js baby-names.csv`), `pokemon` (PokéAPI: `node tools/make-pokemon.js species.json`). Download links are in each script.
 - `bank/retired/` holds content from replaced games (the cryptic postcard, the country-letter Where's This From?, and the two-word Cross Post). Nothing loads it.
