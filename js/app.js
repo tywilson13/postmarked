@@ -588,17 +588,20 @@
   // ───────── keep the answer box above the phone keyboard ─────────
   // When a text box is focused, scroll so the part you need (the letter to start with, the clues) sits just under the
   // header and the box itself, plus Dot's reply under it, clears the keyboard. Runs again as the keyboard slides up.
+  // Measured in the visible area (the visual viewport, which on iPhone is shifted by offsetTop once the keyboard
+  // opens), and moved by the difference only, instantly: smooth scrolls that overlap would add up and overshoot.
   function fitFocused() {
     const el = document.activeElement;
     if (!el || !el.matches || !el.matches('.text-input')) return;
-    const vv = window.visualViewport, vh = vv ? vv.height : innerHeight;
-    const bar = document.querySelector('.topbar'), barH = bar ? bar.getBoundingClientRect().bottom : 0;
+    const vv = window.visualViewport, vh = vv ? vv.height : innerHeight, off = vv ? vv.offsetTop : 0;
+    const bar = document.querySelector('.topbar');
+    const barBottom = bar ? Math.max(0, bar.getBoundingClientRect().bottom - off) : 0;
     const box = el.closest('form') || el, anchor = el.closest('section, article')?.querySelector('[data-fit-top]') || box;
     const fb = box.nextElementSibling && box.nextElementSibling.classList.contains('feedback') ? box.nextElementSibling : box;
-    const y0 = scrollY, top = anchor.getBoundingClientRect().top + y0, bottom = fb.getBoundingClientRect().bottom + y0;
-    let y = top - barH - 8;                                    // anchor right under the header…
-    if (bottom + 8 > y + vh) y = bottom + 8 - vh;               // …unless that would hide the box itself
-    if (Math.abs(y - y0) > 4) window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
+    const top = anchor.getBoundingClientRect().top - off, bottom = fb.getBoundingClientRect().bottom - off;
+    let delta = top - (barBottom + 8);                        // anchor right under the header…
+    if (bottom - delta > vh - 8) delta = bottom - (vh - 8);    // …unless that would push the box under the keyboard
+    if (Math.abs(delta) > 6) window.scrollBy({ top: delta, behavior: 'instant' });
   }
   document.addEventListener('focusin', e => {
     if (!e.target.matches || !e.target.matches('.text-input')) return;
